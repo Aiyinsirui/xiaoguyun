@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="16dp">
+        <TextView android:id="@+id/tvTitle" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:textSize="20sp" android:textStyle="bold" />
+        <SurfaceView android:id="@+id/surface" android:layout_width="match_parent"
+            android:layout_height="220dp" android:layout_marginTop="12dp"
+            android:background="#000000" />
+        <TextView android:id="@+id/tvLiveStatus" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="8dp"
+            android:text="@string/connecting" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="12dp">
+            <Button android:id="@+id/btnDefinition" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="高清" />
+            <Button android:id="@+id/btnMute" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="@string/mute" />
+            <Button android:id="@+id/btnPlayback" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="@string/playback" />
+            <Button android:id="@+id/btnDetail" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="设备详情" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="8dp">
+            <Button android:id="@+id/btnSnapshot" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="抓拍" />
+            <Button android:id="@+id/btnRecord" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="本地录像" />
+            <Button android:id="@+id/btnLens" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="切换镜头" />
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:text="云台（点按发送，松开停止；按住每 250ms 重发）" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="8dp">
+            <Button android:id="@+id/btnUp" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="@string/ptz_up" />
+            <Button android:id="@+id/btnDown" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="@string/ptz_down" />
+            <Button android:id="@+id/btnLeft" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="@string/ptz_left" />
+            <Button android:id="@+id/btnRight" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="@string/ptz_right" />
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="预置位/巡航：原 App 静态代码中无对应命令码，未提供入口（见 AUDIT.md）。" />
+        <Button android:id="@+id/btnIntercom" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="12dp"
+            android:text="@string/intercom" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="对讲：先发 code 26 volplay 打开，按住说话（8kHz 麦克风 → G.711A → RTMP 推流到直播地址末位改 3 的地址），松开关闭并调 closepath。回声处理：VOICE_COMMUNICATION 采集 + MODE_IN_COMMUNICATION + 通话时本地静音。音频上行链路未实测，若对方听不到，先确认直播已跑通。" />
+        <Button android:id="@+id/btnRetryLive" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="12dp"
+            android:text="@string/retry" />
+    </LinearLayout>
+</ScrollView>

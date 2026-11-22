@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="16dp">
+    <TextView android:id="@+id/tvTitle" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:textSize="20sp" android:textStyle="bold"
+        android:text="内存卡" />
+    <TextView android:id="@+id/tvInfo" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:layout_marginTop="12dp" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:layout_marginTop="16dp">
+        <Button android:id="@+id/btnRefreshTf" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1" android:text="刷新" />
+        <Button android:id="@+id/btnFormatTf" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1" android:text="格式化" />
+        <Button android:id="@+id/btnSdPlayback" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1" android:text="SD 回放" />
+    </LinearLayout>
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="说明：内存卡信息走 WS code 13（已用百分比），格式化走 code 12；总容量/剩余容量字段静态未确认。SD 回放走 code 23 列表 + code 24 取流。" />
+</LinearLayout>

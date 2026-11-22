@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <application
+        android:allowBackup="false"
+        android:label="小谷云"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.XiaoGuYun"
+        android:usesCleartextTraffic="false">
+        <activity android:name=".ui.LoginActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".ui.DeviceListActivity" android:exported="false" />
+        <activity android:name=".ui.LiveActivity" android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+        <activity android:name=".ui.PlaybackActivity" android:exported="false" />
+        <activity android:name=".ui.DeviceDetailActivity" android:exported="false" />
+        <activity android:name=".ui.SdCardActivity" android:exported="false" />
+        <activity android:name=".ui.MessagesActivity" android:exported="false" />
+    </application>
+</manifest>

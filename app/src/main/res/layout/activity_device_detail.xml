@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="16dp">
+        <TextView android:id="@+id/tvTitle" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:textSize="20sp" android:textStyle="bold" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="12dp">
+            <Button android:id="@+id/btnRefresh" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:text="刷新" />
+            <Button android:id="@+id/btnSdCard" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:text="内存卡" />
+            <Button android:id="@+id/btnMessages" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:text="消息" />
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:text="设备信息" android:textStyle="bold" />
+        <TextView android:id="@+id/tvInfo" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="4dp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:text="基础信息（WS code 6/51/52）" android:textStyle="bold" />
+        <TextView android:id="@+id/tvWsInfo" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="4dp" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="8dp">
+            <Button android:id="@+id/btnReboot" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:text="重启设备" />
+            <Button android:id="@+id/btnCheckFw" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:text="检查固件更新" />
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:text="改名" android:textStyle="bold" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="4dp">
+            <EditText android:id="@+id/etDeviceName" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:hint="新设备名" />
+            <Button android:id="@+id/btnRename" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="改名" />
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:text="指示灯" android:textStyle="bold" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="4dp">
+            <Button android:id="@+id/btnLedOn" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:text="指示灯开" />
+            <Button android:id="@+id/btnLedOff" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:text="指示灯关" />
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:text="移动侦测（code 14/15）" android:textStyle="bold" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="4dp">
+            <EditText android:id="@+id/etDetSw" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:hint="开关 0/1" android:inputType="number" />
+            <EditText android:id="@+id/etDetSen" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:hint="灵敏度" android:inputType="number" />
+            <Button android:id="@+id/btnGetDetection" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="查询" />
+            <Button android:id="@+id/btnSetDetection" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="设置" />
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:text="追踪（code 16/17）" android:textStyle="bold" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="4dp">
+            <EditText android:id="@+id/etTrackSw" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:hint="开关 0/1" android:inputType="number" />
+            <EditText android:id="@+id/etTrackSen" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:hint="灵敏度" android:inputType="number" />
+            <Button android:id="@+id/btnGetTrack" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="查询" />
+            <Button android:id="@+id/btnSetTrack" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="设置" />
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:text="画面翻转（code 18/19）" android:textStyle="bold" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="4dp">
+            <Button android:id="@+id/btnFlipOn" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:text="翻转开" />
+            <Button android:id="@+id/btnFlipOff" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:text="翻转关" />
+            <Button android:id="@+id/btnGetFlip" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:text="查询" />
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:text="录像参数（code 20/21）" android:textStyle="bold" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="4dp">
+            <Button android:id="@+id/btnGetRecParm" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:text="查询录像参数" />
+            <Button android:id="@+id/btnSetRecParm" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:text="设置（暂不开放）" />
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:text="报警开关（code 35/36）" android:textStyle="bold" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="4dp">
+            <EditText android:id="@+id/etAlarmSw" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:hint="开关 0/1" android:inputType="number" />
+            <EditText android:id="@+id/etAlarmSen" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:hint="灵敏度" android:inputType="number" />
+            <Button android:id="@+id/btnGetAlarm" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="查询" />
+            <Button android:id="@+id/btnSetAlarm" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="设置" />
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:text="PIR（code 58/59）" android:textStyle="bold" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="4dp">
+            <EditText android:id="@+id/etPirSw" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:hint="开关 0/1" android:inputType="number" />
+            <EditText android:id="@+id/etPirSen" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:hint="灵敏度" android:inputType="number" />
+            <Button android:id="@+id/btnGetPir" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="查询" />
+            <Button android:id="@+id/btnSetPir" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="设置" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="12dp">
+            <Button android:id="@+id/btnGetRecordTime" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:text="查询录像时间表" />
+            <Button android:id="@+id/btnGetPackage" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:text="查询云套餐（WS）" />
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:text="云套餐" android:textStyle="bold" />
+        <TextView android:id="@+id/tvCloud" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="4dp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:text="分享设备" android:textStyle="bold" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="4dp">
+            <EditText android:id="@+id/etSharePhone" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:hint="对方手机号" android:inputType="phone" android:maxLength="11" />
+            <EditText android:id="@+id/etUsefulDays" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:hint="有效天数（空=永久）" android:inputType="number" />
+            <Button android:id="@+id/btnShare" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="分享" />
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="权限默认 1,2（查看+对讲/云台）；分享有效期语义以实测为准，见 AUDIT.md。" />
+        <Button android:id="@+id/btnShareList" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="查看分享列表" />
+        <TextView android:id="@+id/tvShare" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="4dp" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="8dp">
+            <EditText android:id="@+id/etCancelIotId" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:hint="iotId（取消/退出分享用）" />
+            <Button android:id="@+id/btnCancelShare" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="取消分享" />
+            <Button android:id="@+id/btnExitShared" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="退出分享" />
+        </LinearLayout>
+        <Button android:id="@+id/btnUnbind" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="解绑设备" />
+    </LinearLayout>
+</ScrollView>
