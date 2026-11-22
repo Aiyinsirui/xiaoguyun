@@ -160,13 +160,17 @@ class WsClient(private val store: TokenStore) {
         sendRaw(o.toString())
     }
 
-    fun requestVideo(sn: String, stream: Int, timeoutMs: Long = 5000, onAddr: (String?) -> Unit) {
+    fun requestVideo(sn: String, stream: Int, timeoutMs: Long = 12000, onAddr: (String?) -> Unit) {
         // 40s cache reuse, mirroring the original app.
         val now = System.currentTimeMillis()
         if (lastRtmpAddr != null && now - lastRtmpAt < 40_000) { onAddr(lastRtmpAddr); return }
         pending[22] = { obj ->
-            val addr = obj.optJSONObject("data")?.optString("addr")
-                ?: obj.optString("addr", "")
+            // data is normally {"addr": "..."}; tolerate a JSON-string data too.
+            val dataObj = obj.optJSONObject("data")
+            val addr = dataObj?.optString("addr")
+                ?: obj.optString("data", "").let {
+                    try { JSONObject(it).optString("addr", "") } catch (_: Exception) { "" }
+                }.ifBlank { obj.optString("addr", "") }
             if (addr.isNotBlank()) { lastRtmpAddr = addr; lastRtmpAt = System.currentTimeMillis() }
             onAddr(addr.ifBlank { null })
         }
@@ -253,6 +257,21 @@ class WsClient(private val store: TokenStore) {
 
     fun sendDisconnect(sn: String) = send(5, "disconnect", sn)
     fun sendReboot(sn: String) = send(7, "reboot", sn)
+
+    /**
+     * code 3 "link APP[ANDROID]", top-level "link" field (NOT inside data):
+     * tells the server an app session is watching this device. The original
+     * app sends link=1 when a device is opened and link=0 on exit, on its
+     * single shared socket. v1.1.2: LiveActivity opens a fresh socket, so it
+     * must send this (plus subdevice) before videoplay, or the server may
+     * silently ignore the code-22 request.
+     */
+    fun sendLink(sn: String, link: Boolean) {
+        val o = JSONObject()
+        o.put("code", 3); o.put("message", "link APP[ANDROID]"); o.put("sn", sn)
+        o.put("link", if (link) 1 else 0)
+        sendRaw(o.toString())
+    }
 
     // ---- LED / detection / tracking / flip / record params ----
     /** code 11: led value. TODO: 0/1 meaning not expanded statically; treated as on/off. */

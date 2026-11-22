@@ -74,13 +74,35 @@ class LiveActivity : AppCompatActivity() {
             onState = { msg -> runOnUiThread { tvStatus.text = msg } },
         )
         ws.listener = object : WsClient.Listener {
-            override fun onConnected() { runOnUiThread { requestVideo() } }
+            override fun onConnected() {
+                runOnUiThread {
+                    // v1.1.2: the original app keeps ONE shared socket that is
+                    // already subscribed (code 90 on open) before any videoplay.
+                    // This activity opens a fresh socket, so subscribe + link
+                    // first, then ask for the stream — videoplay from an
+                    // unsubscribed session gets no reply at all.
+                    ws.sendLink(sn, true)
+                    ws.subscribe(listOf(sn))
+                    ws.subscribeOneDevice(sn)
+                    requestVideo()
+                }
+            }
             override fun onDisconnected(reason: String) {
                 runOnUiThread { tvStatus.text = "信令断开：$reason" }
             }
             override fun onDeviceStates(states: Map<String, WsClient.DeviceState>) {}
             override fun onError(message: String) {
                 runOnUiThread { tvStatus.text = "信令错误：$message" }
+            }
+        }
+        // Diagnostic: show the last WS frame id while waiting, so a
+        // screenshot tells us whether the server answered at all.
+        ws.rawListener = { code, _ ->
+            runOnUiThread {
+                val t = tvStatus.text.toString()
+                if (t.startsWith("正在请求直播地址")) {
+                    tvStatus.text = "正在请求直播地址…（已收到信令 $code）"
+                }
             }
         }
         findViewById<Button>(R.id.btnRetryLive).setOnClickListener { requestVideo() }
@@ -179,15 +201,27 @@ class LiveActivity : AppCompatActivity() {
         }
     }
 
+    private var videoRetries = 0
+
     private fun requestVideo() {
         tvStatus.text = "正在请求直播地址…"
         if (!ws.isOpen()) { ws.connect(); return }
         ws.requestVideo(sn, stream) { addr ->
             runOnUiThread {
                 if (addr.isNullOrBlank()) {
-                    tvStatus.text = "取流失败：5 秒内未收到 code 22 回复（设备可能离线，或 stream 映射不对）"
+                    // Original app auto-retries the stream request; one retry
+                    // here covers a slow device wake-up before giving up.
+                    if (videoRetries < 1) {
+                        videoRetries++
+                        tvStatus.text = "取流超时，重试一次…"
+                        ws.clearVideoCache()
+                        requestVideo()
+                        return@runOnUiThread
+                    }
+                    tvStatus.text = "取流失败：12 秒内未收到 code 22 回复（设备可能离线，或 stream 映射不对）"
                     return@runOnUiThread
                 }
+                videoRetries = 0
                 rtmpAddr = addr
                 lens = when {
                     addr.endsWith("/1") -> 1
@@ -275,6 +309,7 @@ class LiveActivity : AppCompatActivity() {
         try { if (intercom.isTalking) intercom.stop() } catch (_: Exception) {}
         try { recorder.release() } catch (_: Exception) {}
         try { player.release() } catch (_: Exception) {}
+        try { ws.sendLink(sn, false) } catch (_: Exception) {}
         ws.disconnect()
         super.onDestroy()
     }
