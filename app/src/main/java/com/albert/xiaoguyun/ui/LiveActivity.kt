@@ -76,12 +76,13 @@ class LiveActivity : AppCompatActivity() {
         ws.listener = object : WsClient.Listener {
             override fun onConnected() {
                 runOnUiThread {
-                    // v1.1.2: the original app keeps ONE shared socket that is
-                    // already subscribed (code 90 on open) before any videoplay.
-                    // This activity opens a fresh socket, so subscribe + link
-                    // first, then ask for the stream — videoplay from an
-                    // unsubscribed session gets no reply at all.
-                    ws.sendLink(sn, true)
+                    // v1.1.3: code 3 link is NOT sent here any more. v1.1.2 sent
+                    // link=1 on entry and link=0 on exit; in the original app
+                    // link=0 is sent ONLY after a successful REST unbind
+                    // (HomeFragment.unBindDevice), so exiting live told the
+                    // server/device the app had unbound it and the camera
+                    // reset itself and lost its WiFi. Subscribe (code 90/42)
+                    // is the safe pre-videoplay step, not link.
                     ws.subscribe(listOf(sn))
                     ws.subscribeOneDevice(sn)
                     requestVideo()
@@ -309,7 +310,6 @@ class LiveActivity : AppCompatActivity() {
         try { if (intercom.isTalking) intercom.stop() } catch (_: Exception) {}
         try { recorder.release() } catch (_: Exception) {}
         try { player.release() } catch (_: Exception) {}
-        try { ws.sendLink(sn, false) } catch (_: Exception) {}
         ws.disconnect()
         super.onDestroy()
     }

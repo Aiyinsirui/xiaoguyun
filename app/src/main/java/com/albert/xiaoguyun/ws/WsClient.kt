@@ -259,19 +259,13 @@ class WsClient(private val store: TokenStore) {
     fun sendReboot(sn: String) = send(7, "reboot", sn)
 
     /**
-     * code 3 "link APP[ANDROID]", top-level "link" field (NOT inside data):
-     * tells the server an app session is watching this device. The original
-     * app sends link=1 when a device is opened and link=0 on exit, on its
-     * single shared socket. v1.1.2: LiveActivity opens a fresh socket, so it
-     * must send this (plus subdevice) before videoplay, or the server may
-     * silently ignore the code-22 request.
+     * code 3 "link APP[ANDROID]" is DELIBERATELY NOT sent by this client.
+     * In the original app link=1 is sent only while binding a new device
+     * and link=0 only after a successful REST unbind (HomeFragment
+     * .unBindDevice). v1.1.2 sent link=0 when leaving the live page and the
+     * camera reset itself and lost its WiFi — do not re-add this frame.
+     * (Method removed in v1.1.3; see LiveActivity.)
      */
-    fun sendLink(sn: String, link: Boolean) {
-        val o = JSONObject()
-        o.put("code", 3); o.put("message", "link APP[ANDROID]"); o.put("sn", sn)
-        o.put("link", if (link) 1 else 0)
-        sendRaw(o.toString())
-    }
 
     // ---- LED / detection / tracking / flip / record params ----
     /** code 11: led value. TODO: 0/1 meaning not expanded statically; treated as on/off. */
