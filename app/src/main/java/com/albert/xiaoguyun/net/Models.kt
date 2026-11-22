@@ -35,7 +35,10 @@ data class DeviceInfo(
     val iotId: String? = null,
     val identityId: String? = null,
     val owned: Int = 0,
-    // REST status: 1 = online, 3 = offline. Unreliable — WS subscription wins.
+    // REST status: 1 = online, 3 = offline. WS status: 0 = offline, any
+    // other value = online (original app: status != "0" -> online).
+    // isOnline is the union: offline is 0 (WS) or 3 (REST), everything else
+    // counts as online. v1.1.1: the old `status == 1` missed WS values.
     val status: Int = 3,
     val bat: Int = -1,
     val iccid: String? = null,
@@ -53,7 +56,7 @@ data class DeviceInfo(
         ?: deviceName?.takeIf { it.isNotBlank() }
         ?: productName?.takeIf { it.isNotBlank() }
         ?: sn
-    val isOnline: Boolean get() = status == 1
+    val isOnline: Boolean get() = status != 0 && status != 3
 }
 
 data class V3ListData(

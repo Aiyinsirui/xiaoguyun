@@ -340,10 +340,27 @@ class WsClient(private val store: TokenStore) {
     private fun handleMessage(text: String) {
         try {
             val obj = JSONObject(text)
+            // BUG FIX v1.1.1 — device showed offline while the original app
+            // showed online. The server's WS frames carry the command id in
+            // EITHER "code" or "state" (see original IotParamName:
+            // isSubDeviceList checks "\"state\":90", isDeviceState checks
+            // "\"code\":91", getIsCommand checks both). The subdevice reply
+            // arrives as {"code":200,"state":90,"data":[...]} — the old code
+            // took "code" first, saw 200, found no waiter for 200 and dropped
+            // the frame, so onDeviceStates never fired and the list stayed on
+            // the (unreliable) REST status. Fix: when "state" is a known
+            // command id, it wins over "code".
+            val codeVal = if (obj.has("code")) obj.optInt("code", -1) else -1
+            val stateVal = if (obj.has("state")) obj.optInt("state", -1) else -1
+            val knownCommands = setOf(
+                2, 6, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+                24, 25, 26, 27, 28, 35, 36, 37, 38, 40, 41, 42, 43, 51, 52,
+                53, 54, 58, 59, 90, 91, 401, 100001,
+            )
             val code = when {
-                obj.has("code") -> obj.optInt("code", -1)
-                obj.has("state") -> obj.optInt("state", -1)
-                else -> -1
+                stateVal in knownCommands -> stateVal
+                codeVal != -1 -> codeVal
+                else -> stateVal
             }
             when (code) {
                 90, 91 -> {
@@ -358,13 +375,25 @@ class WsClient(private val store: TokenStore) {
                     } else if (obj.has("sn")) {
                         val sn = obj.optString("sn")
                         map[sn] = DeviceState(sn, obj.optInt("status", 3), obj.optInt("bat", -1))
+                    } else {
+                        // Single-device reply as {"state":90,"data":{"sn":..,"status":..}}
+                        val d = obj.optJSONObject("data")
+                        if (d != null) {
+                            val sn = d.optString("sn")
+                            if (sn.isNotBlank()) {
+                                map[sn] = DeviceState(sn, d.optInt("status", 3), d.optInt("bat", -1))
+                            }
+                        }
                     }
                     if (map.isNotEmpty()) listener?.onDeviceStates(map)
                 }
                 100001 -> { /* TODO §5-#4: meaning unknown statically; ignored. */ }
                 401 -> {
-                    // TODO §5-#4: state:401 looks like token-invalid re-subscribe; ignored for now.
+                    // Token-invalid: original app re-sends subdevice on
+                    // code==200 + state==401. Close the socket so onClose
+                    // triggers the reconnect loop, which re-subscribes on open.
                     rawListener?.invoke(code, obj)
+                    try { client?.close() } catch (_: Exception) {}
                 }
                 else -> {
                     val waiter = pending.remove(code)

@@ -90,7 +90,9 @@ class DeviceListActivity : AppCompatActivity() {
                     tvStatus.text = "设备 ${devices.size} 台，在线 $online 台"
                 }
             }
-            override fun onError(message: String) {}
+            override fun onError(message: String) {
+                runOnUiThread { tvStatus.text = "信令错误：$message" }
+            }
         }
         loadDevices()
     }
