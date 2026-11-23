@@ -13,6 +13,7 @@
         android:label="小谷云"
         android:supportsRtl="true"
         android:theme="@style/Theme.XiaoGuYun"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:usesCleartextTraffic="false">
         <activity android:name=".ui.LoginActivity" android:exported="true">
             <intent-filter>

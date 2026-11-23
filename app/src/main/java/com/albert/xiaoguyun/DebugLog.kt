@@ -69,7 +69,9 @@ object DebugLog {
             started = true
             appContext = app
             endpoint = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .getString(KEY_ENDPOINT, null)?.trim()?.takeIf { it.startsWith("https://") }
+                .getString(KEY_ENDPOINT, null)?.trim()?.takeIf {
+                    it.startsWith("https://") || it.startsWith("http://")
+                }
         }
         log("DEBUG", "DebugLog 已启动，上传地址：${endpoint ?: "（未配置）"}")
         // Refresh the tunnel URL from the repo (it changes on tunnel restart).
@@ -78,7 +80,7 @@ object DebugLog {
                 val req = Request.Builder().url(ENDPOINT_FILE_URL).build()
                 http.newCall(req).execute().use { resp ->
                     val url = resp.body?.string()?.trim().orEmpty()
-                    if (resp.isSuccessful && url.startsWith("https://")) {
+                    if (resp.isSuccessful && (url.startsWith("https://") || url.startsWith("http://"))) {
                         synchronized(lock) { endpoint = url }
                         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                             .edit().putString(KEY_ENDPOINT, url).apply()

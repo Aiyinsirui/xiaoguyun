@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Debug telemetry only: allow cleartext to bore.pub (the free tunnel
+         in front of the Altare debug-log receiver). Everything else stays
+         HTTPS-only (usesCleartextTraffic=false in the manifest). -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">bore.pub</domain>
+    </domain-config>
+</network-security-config>
