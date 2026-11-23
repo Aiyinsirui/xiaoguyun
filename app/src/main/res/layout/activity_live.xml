@@ -63,5 +63,8 @@
         <Button android:id="@+id/btnRetryLive" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="12dp"
             android:text="@string/retry" />
+        <Button android:id="@+id/btnCopyAddr" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="12dp"
+            android:text="复制直播地址（诊断编码用）" />
     </LinearLayout>
 </ScrollView>

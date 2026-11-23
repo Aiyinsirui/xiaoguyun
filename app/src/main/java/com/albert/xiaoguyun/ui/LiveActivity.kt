@@ -60,7 +60,28 @@ class LiveActivity : AppCompatActivity() {
         tvStatus = findViewById(R.id.tvLiveStatus)
         val surface = findViewById<SurfaceView>(R.id.surface)
         player = VlcPlayer(this, surface)
-        player.onError = { runOnUiThread { tvStatus.text = "播放出错，请点重试（可能是 RTMP 地址已过期）" } }
+        // v1.1.5: VLC (libVLC 3.x) fails on this camera's stream
+        // (EncounteredError while ~200 KB/s of stream data is arriving —
+        // the player cannot decode it, most likely H.265 in enhanced RTMP,
+        // which neither VLC 3.x nor ExoPlayer's FLV extractor supports).
+        // The sub-stream is often H.264, so on the first playback error
+        // automatically retry with the other definition before giving up.
+        player.onError = {
+            runOnUiThread {
+                if (!triedFallback) {
+                    triedFallback = true
+                    stream = if (stream == WsClient.STREAM_HIGH) WsClient.STREAM_FLUENT else WsClient.STREAM_HIGH
+                    findViewById<Button>(R.id.btnDefinition).text =
+                        if (stream == WsClient.STREAM_HIGH) "高清" else "流畅"
+                    tvStatus.text = "当前清晰度播不出，自动换${if (stream == WsClient.STREAM_HIGH) "高清" else "流畅"}再试…"
+                    ws.clearVideoCache()
+                    requestVideo()
+                } else {
+                    playErrored = true
+                    tvStatus.text = "高清/流畅都播不出：播放器解不了这路流（疑似 H.265），请点重试或复制地址到电脑上看编码"
+                }
+            }
+        }
         recorder = VlcRecorder(this)
         val store = TokenStore(this)
         ws = WsClient(store)
@@ -101,9 +122,30 @@ class LiveActivity : AppCompatActivity() {
                 }
             }
         }
-        findViewById<Button>(R.id.btnRetryLive).setOnClickListener { requestVideo() }
+        findViewById<Button>(R.id.btnRetryLive).setOnClickListener {
+            // v1.1.5: a retry must not reuse the cached address — the old
+            // code re-played the same (possibly expired) RTMP URL.
+            triedFallback = false
+            playErrored = false
+            ws.clearVideoCache()
+            requestVideo()
+        }
+        // v1.1.5: copy the live RTMP URL for PC-side diagnosis
+        // (paste into desktop VLC / ffprobe to see the video codec).
+        findViewById<Button>(R.id.btnCopyAddr).setOnClickListener {
+            val addr = rtmpAddr
+            if (addr.isNullOrBlank()) {
+                android.widget.Toast.makeText(this, "还没有直播地址", android.widget.Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val cm = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("rtmp", addr))
+            android.widget.Toast.makeText(this, "直播地址已复制，可粘贴到电脑 VLC/ffprobe 看编码", android.widget.Toast.LENGTH_SHORT).show()
+        }
         val btnDef = findViewById<Button>(R.id.btnDefinition)
         btnDef.setOnClickListener {
+            triedFallback = false
+            playErrored = false
             stream = if (stream == WsClient.STREAM_HIGH) WsClient.STREAM_FLUENT else WsClient.STREAM_HIGH
             btnDef.text = if (stream == WsClient.STREAM_HIGH) "高清" else "流畅"
             ws.clearVideoCache()
@@ -198,6 +240,11 @@ class LiveActivity : AppCompatActivity() {
     }
 
     private var videoRetries = 0
+    /** v1.1.5: whether the definition auto-fallback already ran, and
+     *  whether the player reported an explicit error (watchdog must not
+     *  overwrite it). */
+    private var triedFallback = false
+    private var playErrored = false
 
     private fun requestVideo() {
         tvStatus.text = "正在请求直播地址…"
@@ -228,13 +275,15 @@ class LiveActivity : AppCompatActivity() {
                 // Only the host is shown in the UI; full URL is passed
                 // straight to VLC and never logged.
                 val host = addr.substringAfter("://").substringBefore("/")
-                tvStatus.text = "已拿到直播地址（$host），正在播放…"
+                tvStatus.text = "已拿到直播地址（$host，${if (stream == WsClient.STREAM_HIGH) "高清" else "流畅"}），正在播放…"
+                playErrored = false
                 player.play(addr)
                 // v1.1.4 watchdog: if VLC still has no video 8 s after the
                 // address arrived, say so explicitly — distinguishes "no
                 // address" from "address OK but player gets no frames".
+                // v1.1.5: do not overwrite an explicit playback error.
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    if (!isFinishing && rtmpAddr == addr && !player.isPlaying) {
+                    if (!isFinishing && !playErrored && rtmpAddr == addr && !player.isPlaying) {
                         tvStatus.text = "已拿到地址但 8 秒无画面：播放器未收到视频流（取流已成功，问题在播放环节，请截此屏）"
                     }
                 }, 8000)
