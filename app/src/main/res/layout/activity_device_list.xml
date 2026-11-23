@@ -15,6 +15,14 @@
     <TextView android:id="@+id/tvStatus" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:layout_marginTop="8dp"
         android:text="@string/connecting" />
+    <TextView android:id="@+id/tvCrash" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:layout_marginTop="8dp"
+        android:background="#FFF3E0" android:padding="8dp" android:textSize="12sp"
+        android:typeface="monospace" android:textIsSelectable="true"
+        android:visibility="gone" />
+    <Button android:id="@+id/btnCopyCrash" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:layout_marginTop="4dp"
+        android:text="复制崩溃日志（粘贴发给开发者）" android:visibility="gone" />
     <androidx.recyclerview.widget.RecyclerView android:id="@+id/rvDevices"
         android:layout_width="match_parent" android:layout_height="0dp"
         android:layout_weight="1" android:layout_marginTop="8dp" />

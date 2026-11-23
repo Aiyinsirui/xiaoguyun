@@ -1,5 +1,8 @@
 package com.albert.xiaoguyun.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -12,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.albert.xiaoguyun.CrashLog
 import com.albert.xiaoguyun.R
 import com.albert.xiaoguyun.net.ApiClient
 import com.albert.xiaoguyun.net.ApiException
@@ -32,10 +36,26 @@ class DeviceListActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CrashLog.install(this)
         store = TokenStore(this)
         api = ApiClient(store)
         ws = WsClient(store)
         setContentView(R.layout.activity_device_list)
+        // v1.1.8: if the previous run crashed (e.g. opening live), show the
+        // saved stack trace here so the user can copy it to the developer.
+        val crash = CrashLog.read(this)
+        if (!crash.isNullOrBlank()) {
+            val tvCrash = findViewById<TextView>(R.id.tvCrash)
+            tvCrash.text = "上次闪退原因：\n" + crash.take(2500)
+            tvCrash.visibility = View.VISIBLE
+            val btnCopy = findViewById<Button>(R.id.btnCopyCrash)
+            btnCopy.visibility = View.VISIBLE
+            btnCopy.setOnClickListener {
+                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cm.setPrimaryClip(ClipData.newPlainText("crash", crash))
+                Toast.makeText(this, "崩溃日志已复制，粘贴发我", Toast.LENGTH_SHORT).show()
+            }
+        }
         tvStatus = findViewById(R.id.tvStatus)
         tvEmpty = findViewById(R.id.tvEmpty)
         btnRetry = findViewById(R.id.btnRetry)
