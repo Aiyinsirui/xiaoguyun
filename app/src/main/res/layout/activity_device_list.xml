@@ -23,6 +23,9 @@
     <Button android:id="@+id/btnCopyCrash" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:layout_marginTop="4dp"
         android:text="复制崩溃日志（粘贴发给开发者）" android:visibility="gone" />
+    <Button android:id="@+id/btnClearCrash" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:layout_marginTop="4dp"
+        android:text="清除这条崩溃日志" android:visibility="gone" />
     <TextView android:id="@+id/tvDebugStatus" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:layout_marginTop="4dp"
         android:text="调试上传：未上传" android:textSize="12sp" />

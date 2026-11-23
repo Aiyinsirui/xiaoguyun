@@ -62,6 +62,12 @@ class ExoRtmpPlayer(
 
     var onError: (() -> Unit)? = null
     val isPlaying: Boolean get() = try { player.isPlaying } catch (_: Exception) { false }
+    private var lastVideoSize: VideoSize? = null
+
+    /** Re-run the aspect fit (e.g. after a fullscreen toggle changes the container). */
+    fun refit() {
+        lastVideoSize?.let { fitSurfaceToVideo(it) }
+    }
     val timeMs: Long get() = try { player.currentPosition } catch (_: Exception) { -1 }
     val lengthMs: Long
         get() = try {
@@ -78,6 +84,7 @@ class ExoRtmpPlayer(
 
             override fun onVideoSizeChanged(videoSize: VideoSize) {
                 DebugLog.log("PLAYER", "video size ${videoSize.width}x${videoSize.height}")
+                lastVideoSize = videoSize
                 fitSurfaceToVideo(videoSize)
             }
         })
@@ -91,6 +98,12 @@ class ExoRtmpPlayer(
      * grows to the fitted height (clamped to [220dp, 65% screen]).
      * Landscape: the container size is fixed by the land layout, so the
      * view is fitted inside it and centered.
+     *
+     * v1.2.1 fix: portrait vs landscape must come from the DEVICE
+     * orientation, NOT from the container's aspect. In portrait the
+     * container is wide-and-short (match_parent x 220dp), so the old
+     * `cw > ch` test took the landscape branch and squeezed the video
+     * into a narrow centred column (the 2026-11-23 screenshot).
      */
     private fun fitSurfaceToVideo(videoSize: VideoSize) {
         val vw = videoSize.width
@@ -103,7 +116,9 @@ class ExoRtmpPlayer(
             val cw = container.width
             val ch = container.height
             if (cw <= 0 || ch <= 0) return@post
-            val landscape = cw > ch
+            val landscape =
+                appContext.resources.configuration.orientation ==
+                    android.content.res.Configuration.ORIENTATION_LANDSCAPE
             val (w, h) = if (landscape) {
                 val scale = minOf(cw / videoW, ch / videoH)
                 (videoW * scale).toInt() to (videoH * scale).toInt()

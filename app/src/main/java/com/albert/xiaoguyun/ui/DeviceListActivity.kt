@@ -45,19 +45,43 @@ class DeviceListActivity : AppCompatActivity() {
         setContentView(R.layout.activity_device_list)
         // v1.1.8: if the previous run crashed (e.g. opening live), show the
         // saved stack trace here so the user can copy it to the developer.
+        // v1.2.1: collapsed by default (tap to expand), with a clear button
+        // — the full trace no longer hogs the list.
         val crash = CrashLog.read(this)
         if (!crash.isNullOrBlank()) {
             // Also upload the crash trace with the debug telemetry.
             DebugLog.log("CRASH", crash.take(3000))
             val tvCrash = findViewById<TextView>(R.id.tvCrash)
-            tvCrash.text = "上次闪退原因：\n" + crash.take(2500)
+            val crashSummary = crash.lineSequence().take(2).joinToString("\n")
+            var crashExpanded = false
+            fun renderCrash() {
+                tvCrash.text = if (crashExpanded) {
+                    "上次闪退原因（点我折叠）：\n" + crash.take(2500)
+                } else {
+                    "上次闪退原因（点我展开）：\n" + crashSummary
+                }
+            }
+            renderCrash()
             tvCrash.visibility = View.VISIBLE
+            tvCrash.setOnClickListener {
+                crashExpanded = !crashExpanded
+                renderCrash()
+            }
             val btnCopy = findViewById<Button>(R.id.btnCopyCrash)
             btnCopy.visibility = View.VISIBLE
             btnCopy.setOnClickListener {
                 val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 cm.setPrimaryClip(ClipData.newPlainText("crash", crash))
                 Toast.makeText(this, "崩溃日志已复制，粘贴发我", Toast.LENGTH_SHORT).show()
+            }
+            val btnClear = findViewById<Button>(R.id.btnClearCrash)
+            btnClear.visibility = View.VISIBLE
+            btnClear.setOnClickListener {
+                CrashLog.clear(this)
+                tvCrash.visibility = View.GONE
+                btnCopy.visibility = View.GONE
+                btnClear.visibility = View.GONE
+                Toast.makeText(this, "崩溃日志已清除", Toast.LENGTH_SHORT).show()
             }
         }
         val tvDebugStatus = findViewById<TextView>(R.id.tvDebugStatus)

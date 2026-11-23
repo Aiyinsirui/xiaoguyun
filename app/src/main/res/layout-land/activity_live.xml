@@ -19,7 +19,7 @@
             android:layout_height="wrap_content" android:layout_marginTop="6dp"
             android:text="@string/connecting" />
     </LinearLayout>
-    <ScrollView android:layout_width="320dp" android:layout_height="match_parent"
+    <ScrollView android:id="@+id/scrollControls" android:layout_width="320dp" android:layout_height="match_parent"
         android:layout_marginStart="12dp">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="vertical">
@@ -53,8 +53,17 @@
                     android:layout_height="wrap_content" android:layout_weight="1"
                     android:text="切换镜头" />
             </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:layout_marginTop="8dp">
+                <Button android:id="@+id/btnFullscreen" android:layout_width="0dp"
+                    android:layout_height="wrap_content" android:layout_weight="1"
+                    android:text="全屏" />
+                <Button android:id="@+id/btnResetPtz" android:layout_width="0dp"
+                    android:layout_height="wrap_content" android:layout_weight="1"
+                    android:text="云台复位" />
+            </LinearLayout>
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:layout_marginTop="16dp" android:text="云台（点按发送，松开停止；按住每 250ms 重发）" />
+                android:layout_marginTop="16dp" android:text="云台：点按转一下，松开即停；按住连续转；也可滑动画面；点复位回初始位置" />
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:orientation="horizontal" android:layout_marginTop="8dp">
                 <Button android:id="@+id/btnUp" android:layout_width="0dp" android:layout_height="wrap_content"
@@ -68,7 +77,7 @@
             </LinearLayout>
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:text="预置位/巡航：原 App 静态代码中无对应命令码，未提供入口（见 AUDIT.md）。" />
+                android:text="云台位置由摄像头本身保持，退出重进不会复位（除非点复位）。预置位/巡航：原 App 静态代码中无对应命令码，未提供入口。" />
             <Button android:id="@+id/btnIntercom" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="12dp"
                 android:text="@string/intercom" />

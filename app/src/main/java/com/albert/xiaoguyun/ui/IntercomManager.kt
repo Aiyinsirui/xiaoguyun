@@ -5,6 +5,7 @@ import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import com.albert.xiaoguyun.DebugLog
 import com.albert.xiaoguyun.net.ApiClient
 import com.albert.xiaoguyun.net.G711
 import com.albert.xiaoguyun.net.RtmpPublisher
@@ -50,6 +51,9 @@ class IntercomManager(
     private var prevMode = AudioManager.MODE_NORMAL
     private var prevSpeaker = false
 
+    private var audioFramesSent = 0
+    private var talkStartMs = 0L
+
     val isTalking: Boolean get() = talking.get()
 
     /** Uplink address: live RTMP URL with its last char replaced by '3'. */
@@ -64,6 +68,12 @@ class IntercomManager(
             return
         }
         ws.sendVolPlay(sn, true)
+        // v1.2.1: log the intercom uplink so a failed talk can be diagnosed
+        // from the server log (publish ok/fail + frames sent on stop).
+        val uplinkHost = uplink.substringAfter("://").substringBefore("/")
+        DebugLog.log("TALK", "开始对讲 uplink=$uplinkHost")
+        audioFramesSent = 0
+        talkStartMs = System.currentTimeMillis()
         prevMode = audioManager.mode
         prevSpeaker = audioManager.isSpeakerphoneOn
         try {
@@ -78,7 +88,10 @@ class IntercomManager(
                 publisher = pub
                 if (!pub.start()) {
                     // Degrade to switch-only: the peer side still got code 26.
+                    DebugLog.log("TALK", "音频上行连接失败：${pub.lastError}")
                     onState("对讲开关已发，但音频上行连接失败（${pub.lastError}）；请先确认直播已跑通")
+                } else {
+                    DebugLog.log("TALK", "音频上行已连接")
                 }
                 val minBuf = AudioRecord.getMinBufferSize(
                     8000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
@@ -106,8 +119,10 @@ class IntercomManager(
                         pcm[i] = ((hi shl 8) or lo).toShort()
                     }
                     pub.sendAudio(G711.encode(pcm))
+                    audioFramesSent++
                 }
             } catch (e: Exception) {
+                DebugLog.log("TALK", "对讲录音异常：${e.message}")
                 onState("对讲录音异常：${e.message}")
             } finally {
                 try { record?.stop() } catch (_: Exception) {}
@@ -123,6 +138,10 @@ class IntercomManager(
         recordThread = null
         try { publisher?.stop() } catch (_: Exception) {}
         publisher = null
+        DebugLog.log(
+            "TALK",
+            "结束对讲 时长=${System.currentTimeMillis() - talkStartMs}ms 已发音频帧=$audioFramesSent",
+        )
         ws.sendVolPlay(sn, false)
         try {
             audioManager.mode = prevMode

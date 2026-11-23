@@ -3,14 +3,17 @@ package com.albert.xiaoguyun.ui
 import android.Manifest
 import android.content.ContentValues
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
+import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.SurfaceView
+import android.view.View
 import android.widget.FrameLayout
 import android.widget.Button
 import android.widget.TextView
@@ -47,10 +50,21 @@ class LiveActivity : AppCompatActivity() {
     private var lens = 1
     private var intercomMutedByTalk = false
 
-    // PTZ: the original app re-sends the direction every 250 ms while held,
-    // and sends a single dir-0 frame on release.
+    // PTZ (v1.2.1, root cause found in the original app's code):
+    // the original re-sends the direction every 250 ms while held, and on
+    // release it ONLY cancels the scheduler — it never sends anything.
+    // dir=0 is NOT "stop": the original sends it only from an explicit
+    // reset button ("执行方向复位中..."), i.e. dir=0 = rotate back to the
+    // home position. v1.1.0–v1.2.0 sent dir=0 on every button release, so
+    // every tap homed the camera: it kept rotating after a tap, the
+    // apparent direction depended on where the camera was relative to
+    // home, and the position never stayed where the user left it.
+    // A tap now sends exactly one dir frame (one step); holding repeats
+    // it every 250 ms (continuous). The camera stops by itself when the
+    // frames stop arriving. Reset is a separate button (btnResetPtz).
     private val ptzExecutor = Executors.newSingleThreadScheduledExecutor()
     private var ptzFuture: ScheduledFuture<*>? = null
+    private var isFullscreen = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -173,8 +187,9 @@ class LiveActivity : AppCompatActivity() {
             val i = Intent(this, DeviceDetailActivity::class.java)
             i.putExtra("sn", sn); i.putExtra("name", name); startActivity(i)
         }
-        // PTZ: press sends a direction (repeated every 250 ms), release sends stop.
-        // dir values CONFIRMED by audit: up=1, down=2, left=3, right=4, stop=0.
+        // PTZ: press sends a direction (repeated every 250 ms), release
+        // only stops re-sending (no dir=0 — that is the home/reset
+        // command). dir values: up=1, down=2, left=3, right=4.
         bindPtz(R.id.btnUp, WsClient.PTZ_UP)
         bindPtz(R.id.btnDown, WsClient.PTZ_DOWN)
         bindPtz(R.id.btnLeft, WsClient.PTZ_LEFT)
@@ -226,7 +241,76 @@ class LiveActivity : AppCompatActivity() {
                 else -> true
             }
         }
+        // v1.2.1: explicit PTZ reset (dir=0 = home, per the original app's
+        // "执行方向复位中..." button). Never sent on button release.
+        findViewById<Button>(R.id.btnResetPtz).setOnClickListener {
+            ws.sendMotor(sn, WsClient.PTZ_STOP)
+            DebugLog.log("UI", "点云台复位 dir=0")
+            Toast.makeText(this, "执行方向复位中…", Toast.LENGTH_SHORT).show()
+        }
+        // v1.2.1: fullscreen (button + single tap on the video).
+        isFullscreen = savedInstanceState?.getBoolean("fullscreen") == true
+        findViewById<Button>(R.id.btnFullscreen).setOnClickListener { toggleFullscreen() }
+        val gesture = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                toggleFullscreen()
+                return true
+            }
+            // v1.2.1: swipe on the video = one PTZ step in that direction
+            // (the original app's MoveFrameLayout slide listener sends a
+            // single motor frame per swipe, no repeat, no stop).
+            override fun onFling(
+                e1: MotionEvent?, e2: MotionEvent, vx: Float, vy: Float,
+            ): Boolean {
+                if (e1 == null) return false
+                val dx = e2.x - e1.x
+                val dy = e2.y - e1.y
+                if (kotlin.math.abs(dx) < 80 && kotlin.math.abs(dy) < 80) return false
+                val dir = if (kotlin.math.abs(dx) > kotlin.math.abs(dy)) {
+                    if (dx > 0) WsClient.PTZ_RIGHT else WsClient.PTZ_LEFT
+                } else {
+                    if (dy > 0) WsClient.PTZ_DOWN else WsClient.PTZ_UP
+                }
+                ws.sendMotor(sn, dir)
+                DebugLog.log("UI", "滑动画面云台单步 dir=$dir")
+                return true
+            }
+        })
+        videoContainer.setOnTouchListener { _, e -> gesture.onTouchEvent(e) }
+        applyFullscreen()
         ws.connect()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("fullscreen", isFullscreen)
+    }
+
+    /** Fullscreen = landscape + all controls hidden, video fills the screen.
+     * Tap the video (or the button) again to exit. Rotation recreates the
+     * page and re-requests the stream (a few seconds), same as rotating
+     * the phone by hand. */
+    private fun toggleFullscreen() {
+        isFullscreen = !isFullscreen
+        applyFullscreen()
+    }
+
+    private fun applyFullscreen() {
+        val controls = findViewById<View>(R.id.scrollControls)
+        val title = findViewById<View>(R.id.tvTitle)
+        val fsBtn = findViewById<Button>(R.id.btnFullscreen)
+        if (isFullscreen) {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            controls?.visibility = View.GONE
+            title?.visibility = View.GONE
+            fsBtn?.text = "退出全屏"
+        } else {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            controls?.visibility = View.VISIBLE
+            title?.visibility = View.VISIBLE
+            fsBtn?.text = "全屏"
+        }
+        player.refit()
     }
 
     private fun bindPtz(id: Int, dir: Int) {
@@ -240,8 +324,10 @@ class LiveActivity : AppCompatActivity() {
                     )
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    // v1.2.1: release ONLY stops re-sending (original app
+                    // behaviour). Do NOT send dir=0 here — dir=0 is the
+                    // home/reset command, not a stop.
                     ptzFuture?.cancel(true); ptzFuture = null
-                    ws.sendMotor(sn, WsClient.PTZ_STOP)
                 }
             }
             true

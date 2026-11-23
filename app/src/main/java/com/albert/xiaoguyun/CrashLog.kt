@@ -41,4 +41,11 @@ object CrashLog {
     } catch (_: Exception) {
         null
     }
+
+    fun clear(context: Context) {
+        try {
+            context.getExternalFilesDir(null)?.let { File(it, FILE).takeIf { f -> f.exists() }?.delete() }
+        } catch (_: Exception) {
+        }
+    }
 }
