@@ -1,5 +1,7 @@
 package com.albert.xiaoguyun.net
 
+import com.albert.xiaoguyun.DebugLog
+
 import android.os.Build
 import com.google.gson.Gson
 import com.google.gson.JsonParser
@@ -103,11 +105,16 @@ class ApiClient(private val store: TokenStore) {
     private fun call(req: Request): Envelope {
         http.newCall(req).execute().use { resp ->
             val body = resp.body?.string().orEmpty()
-            return try {
+            val env = try {
                 gson.fromJson(body, Envelope::class.java)
             } catch (e: Exception) {
                 Envelope(success = false, code = resp.code, message = "响应解析失败: ${e.message}")
             }
+            // Debug telemetry: method + path + result only, never the body
+            // (login bodies carry the password, token bodies carry tokens).
+            val path = req.url.toString().removePrefix(BASE_URL)
+            DebugLog.log("REST", "${req.method} $path -> ${env.code} ${env.message ?: ""}")
+            return env
         }
     }
 

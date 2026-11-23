@@ -7,6 +7,7 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.albert.xiaoguyun.CrashLog
+import com.albert.xiaoguyun.DebugLog
 import com.albert.xiaoguyun.R
 import com.albert.xiaoguyun.net.ApiClient
 import com.albert.xiaoguyun.net.ApiException
@@ -21,6 +22,7 @@ class LoginActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        DebugLog.init(this)
         CrashLog.install(this)
         store = TokenStore(this)
         api = ApiClient(store)

@@ -1,6 +1,7 @@
 package com.albert.xiaoguyun.player
 
 import android.content.Context
+import com.albert.xiaoguyun.DebugLog
 import android.net.Uri
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
@@ -44,6 +45,7 @@ class VlcRecorder(context: Context) {
             player.play()
             file = outFile
             recording = true
+            DebugLog.log("REC", "开始录像 ${outFile.name}")
             true
         } catch (_: Exception) { false }
     }
@@ -53,6 +55,7 @@ class VlcRecorder(context: Context) {
         val f = file
         file = null
         recording = false
+        DebugLog.log("REC", "停止录像 ${f?.name} size=${f?.length() ?: 0}")
         try { if (player.isPlaying) player.stop() } catch (_: Exception) {}
         return f
     }

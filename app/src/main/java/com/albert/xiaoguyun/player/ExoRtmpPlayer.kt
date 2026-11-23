@@ -3,6 +3,7 @@ package com.albert.xiaoguyun.player
 import android.content.Context
 import android.graphics.Bitmap
 import android.view.TextureView
+import com.albert.xiaoguyun.DebugLog
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -55,10 +56,12 @@ class ExoRtmpPlayer(context: Context, private val textureView: TextureView) {
     init {
         player.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
+                DebugLog.log("PLAYER", "error: ${error.errorCodeName} ${error.message}")
                 onError?.invoke()
             }
 
             override fun onVideoSizeChanged(videoSize: VideoSize) {
+                DebugLog.log("PLAYER", "video size ${videoSize.width}x${videoSize.height}")
                 fitTextureToVideo(videoSize)
             }
         })

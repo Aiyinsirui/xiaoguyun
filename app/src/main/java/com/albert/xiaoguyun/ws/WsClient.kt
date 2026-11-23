@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.java_websocket.client.WebSocketClient
+import com.albert.xiaoguyun.DebugLog
 import org.java_websocket.handshake.ServerHandshake
 import org.json.JSONArray
 import org.json.JSONObject
@@ -102,6 +103,7 @@ class WsClient(private val store: TokenStore) {
     }
 
     fun connect() {
+        DebugLog.log("WS", "connect()")
         wantConnected = true
         if (client?.isOpen == true) return
         if (!connecting.compareAndSet(false, true)) return
@@ -109,6 +111,7 @@ class WsClient(private val store: TokenStore) {
         val headers = mapOf("Authorization" to "Bearer $token")
         val ws = object : WebSocketClient(URI(WS_URL), headers) {
             override fun onOpen(handshake: ServerHandshake?) {
+                DebugLog.log("WS", "已连接")
                 connecting.set(false)
                 reconnectDelayMs = 1000L
                 subscribedAck = subscribeSns.isEmpty()
@@ -117,11 +120,13 @@ class WsClient(private val store: TokenStore) {
             }
             override fun onMessage(message: String) = handleMessage(message)
             override fun onClose(code: Int, reason: String, remote: Boolean) {
+                DebugLog.log("WS", "关闭 code=$code reason=$reason remote=$remote")
                 connecting.set(false)
                 listener?.onDisconnected(reason.ifBlank { "code=$code" })
                 scheduleReconnect()
             }
             override fun onError(ex: Exception) {
+                DebugLog.log("WS", "错误 ${ex.message}")
                 listener?.onError(ex.message ?: "WS 错误")
             }
         }
@@ -148,6 +153,7 @@ class WsClient(private val store: TokenStore) {
     fun isOpen(): Boolean = client?.isOpen == true
 
     private fun sendRaw(json: String): Boolean {
+        DebugLog.log("WS>>", json.take(600))
         val c = client
         return if (c?.isOpen == true) { c.send(json); true } else false
     }
@@ -387,6 +393,7 @@ class WsClient(private val store: TokenStore) {
         send(53, "", sn, JSONObject().put("data", param))
 
     private fun handleMessage(text: String) {
+        DebugLog.log("WS<<", text.take(600))
         try {
             val obj = JSONObject(text)
             // BUG FIX v1.1.1 — device showed offline while the original app

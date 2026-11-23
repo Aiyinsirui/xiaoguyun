@@ -23,6 +23,18 @@
     <Button android:id="@+id/btnCopyCrash" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:layout_marginTop="4dp"
         android:text="复制崩溃日志（粘贴发给开发者）" android:visibility="gone" />
+    <TextView android:id="@+id/tvDebugStatus" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:layout_marginTop="4dp"
+        android:text="调试上传：未上传" android:textSize="12sp" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:layout_marginTop="4dp">
+        <Button android:id="@+id/btnUploadDebug" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1"
+            android:text="立即上传调试日志" />
+        <Button android:id="@+id/btnCopyDebug" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1"
+            android:text="复制本地调试日志" />
+    </LinearLayout>
     <androidx.recyclerview.widget.RecyclerView android:id="@+id/rvDevices"
         android:layout_width="match_parent" android:layout_height="0dp"
         android:layout_weight="1" android:layout_marginTop="8dp" />

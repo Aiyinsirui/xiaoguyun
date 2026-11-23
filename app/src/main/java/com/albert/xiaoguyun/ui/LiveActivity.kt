@@ -16,6 +16,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import com.albert.xiaoguyun.DebugLog
 import com.albert.xiaoguyun.R
 import com.albert.xiaoguyun.net.ApiClient
 import com.albert.xiaoguyun.net.TokenStore
@@ -56,6 +57,7 @@ class LiveActivity : AppCompatActivity() {
         netType = intent.getStringExtra("netType")
         val name = intent.getStringExtra("name") ?: sn
         setContentView(R.layout.activity_live)
+        DebugLog.log("UI", "打开直播页 sn=$sn name=$name netType=$netType")
         findViewById<TextView>(R.id.tvTitle).text = name
         tvStatus = findViewById(R.id.tvLiveStatus)
         player = ExoRtmpPlayer(this, findViewById<TextureView>(R.id.surface))
@@ -172,6 +174,7 @@ class LiveActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnSnapshot).setOnClickListener { takeSnapshot() }
         val btnRecord = findViewById<Button>(R.id.btnRecord)
         btnRecord.setOnClickListener {
+            DebugLog.log("UI", "点录像按钮 isRecording=${recorder.isRecording}")
             if (recorder.isRecording) {
                 val f = recorder.stop()
                 btnRecord.text = "本地录像"
@@ -179,6 +182,7 @@ class LiveActivity : AppCompatActivity() {
                 Toast.makeText(this, if (size > 0) "录像已保存：${f?.absolutePath}（${size / 1024} KB）" else "录像文件为空，sout 录制可能未成功（见 TODO）", Toast.LENGTH_LONG).show()
             } else {
                 val addr = rtmpAddr
+                DebugLog.log("UI", "取流结果 addr=${addr ?: "空"}")
                 if (addr.isNullOrBlank()) {
                     Toast.makeText(this, "还没有直播地址", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
@@ -316,6 +320,7 @@ class LiveActivity : AppCompatActivity() {
     }
 
     private fun takeSnapshot() {
+        DebugLog.log("UI", "点抓拍")
         player.snapshot { bitmap ->
             runOnUiThread {
                 if (bitmap == null) {

@@ -16,6 +16,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.albert.xiaoguyun.CrashLog
+import com.albert.xiaoguyun.DebugLog
 import com.albert.xiaoguyun.R
 import com.albert.xiaoguyun.net.ApiClient
 import com.albert.xiaoguyun.net.ApiException
@@ -36,6 +37,7 @@ class DeviceListActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        DebugLog.init(this)
         CrashLog.install(this)
         store = TokenStore(this)
         api = ApiClient(store)
@@ -45,6 +47,8 @@ class DeviceListActivity : AppCompatActivity() {
         // saved stack trace here so the user can copy it to the developer.
         val crash = CrashLog.read(this)
         if (!crash.isNullOrBlank()) {
+            // Also upload the crash trace with the debug telemetry.
+            DebugLog.log("CRASH", crash.take(3000))
             val tvCrash = findViewById<TextView>(R.id.tvCrash)
             tvCrash.text = "上次闪退原因：\n" + crash.take(2500)
             tvCrash.visibility = View.VISIBLE
@@ -54,6 +58,25 @@ class DeviceListActivity : AppCompatActivity() {
                 val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 cm.setPrimaryClip(ClipData.newPlainText("crash", crash))
                 Toast.makeText(this, "崩溃日志已复制，粘贴发我", Toast.LENGTH_SHORT).show()
+            }
+        }
+        val tvDebugStatus = findViewById<TextView>(R.id.tvDebugStatus)
+        DebugLog.onStatus = { st -> runOnUiThread { tvDebugStatus.text = "调试上传：$st" } }
+        tvDebugStatus.text = "调试上传：${DebugLog.lastStatus}"
+        findViewById<Button>(R.id.btnUploadDebug).setOnClickListener {
+            tvDebugStatus.text = "调试上传：上传中…（待传 ${DebugLog.pendingCount()} 行）"
+            DebugLog.flushNow { st ->
+                runOnUiThread { tvDebugStatus.text = "调试上传：$st" }
+            }
+        }
+        findViewById<Button>(R.id.btnCopyDebug).setOnClickListener {
+            val text = DebugLog.localLogText()
+            if (text.isBlank()) {
+                Toast.makeText(this, "本地暂无调试日志", Toast.LENGTH_SHORT).show()
+            } else {
+                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cm.setPrimaryClip(ClipData.newPlainText("debug", text))
+                Toast.makeText(this, "本地调试日志已复制", Toast.LENGTH_SHORT).show()
             }
         }
         tvStatus = findViewById(R.id.tvStatus)

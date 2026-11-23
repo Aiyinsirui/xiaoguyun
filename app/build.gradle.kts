@@ -10,8 +10,8 @@ android {
         applicationId = "com.albert.xiaoguyun"
         minSdk = 24
         targetSdk = 33
-        versionCode = 10
-        versionName = "1.1.8"
+        versionCode = 11
+        versionName = "1.1.9"
         ndk { abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a")) }
     }
     buildTypes {
