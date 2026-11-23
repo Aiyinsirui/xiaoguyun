@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- v1.2.0: the video container sits ABOVE the ScrollView (not inside it).
      v1.1.6 proved a SurfaceView inside a ScrollView shows black on this
-     device even though frames are decoded; v1.1.7's TextureView cannot even
-     be constructed here (InflateException at line 10). The SurfaceView is
+     device even though frames are decoded; v1.1.7's TextureView crashed
+     because it carried android:background (UnsupportedOperationException).
+     The SurfaceView is
      created programmatically and added to videoContainer. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"

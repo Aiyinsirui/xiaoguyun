@@ -26,7 +26,7 @@
     <TextView android:id="@+id/tvDates" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:layout_marginTop="4dp" />
     <!-- v1.2.0: SurfaceView is created programmatically into this container.
-         TextureView cannot be constructed on this device (see ExoRtmpPlayer). -->
+         (TextureView with android:background crashes this device, see ExoRtmpPlayer.) -->
     <FrameLayout android:id="@+id/videoContainer" android:layout_width="match_parent"
         android:layout_height="220dp" android:layout_marginTop="8dp"
         android:background="#000000" android:gravity="center" />
