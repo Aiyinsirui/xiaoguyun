@@ -2,11 +2,9 @@ package com.albert.xiaoguyun.player
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.os.Handler
-import android.os.Looper
+import android.graphics.Matrix
 import android.view.Gravity
-import android.view.PixelCopy
-import android.view.SurfaceView
+import android.view.TextureView
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import com.albert.xiaoguyun.DebugLog
@@ -42,23 +40,48 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
  * caused by the SurfaceView sitting INSIDE a ScrollView. So the video now
  * sits in a FrameLayout container ABOVE the ScrollView (portrait) or beside
  * it (landscape), created programmatically, and is letterboxed to the
- * video's real aspect. (A TextureView without a background would also
- * work, but SurfaceView is the path proven on this device.)
+ * video's real aspect.
  *
- * Local files use the default extractors. Audio is video-only for RTMP:
- * the camera's audio is G.711, which Media3 cannot decode from FLV.
- * Local recording still uses [VlcRecorder] (libVLC sout), unchanged.
+ * v1.2.2: back to TextureView — created programmatically, WITHOUT a
+ * background (that was the only thing that crashed v1.1.7; a
+ * background-less TextureView is safe, and v1.2.0's own comment already
+ * said so). TextureView is needed for the three-pane view: the camera is
+ * a three-video device (SN char 3), but /0 and /2 do NOT exist as RTMP
+ * streams (probed 2026-11-23 while the user was on the live page) — the
+ * original's three panes are three CROPS of the one 640x720 combined
+ * frame (full + top half = gun lens + bottom half = ball lens). A
+ * TextureView crop is a transform matrix (2x vertical scale, pivot at
+ * the top/bottom edge); a SurfaceView cannot be cropped. The big view
+ * and the two PiP views are each their own player on the same RTMP URL
+ * (PiPs are muted — only the big view plays sound).
+ *
+ * v1.2.2 audio: [FlvEnhancedExtractor] now decodes the camera's G.711
+ * A-law audio to PCM, so live has sound (before that live was
+ * video-only). Local recording uses [RtmpRecorder] (RTMP stream copy),
+ * not [VlcRecorder] (its sout produced 0-byte files).
  */
 @OptIn(UnstableApi::class)
 class ExoRtmpPlayer(
     context: Context,
-    private val surfaceView: SurfaceView,
+    private val textureView: TextureView,
     private val container: ViewGroup,
+    /** PiP views have a fixed size: fit only the crop transform, never resize. */
+    private val fixedSize: Boolean = false,
 ) {
     private val appContext = context.applicationContext
     private val player: ExoPlayer = ExoPlayer.Builder(appContext).build().apply {
-        setVideoSurfaceView(surfaceView)
+        setVideoTextureView(textureView)
     }
+
+    /** Which part of the 640x720 combined frame this player shows. */
+    enum class Crop { FULL, TOP, BOTTOM }
+
+    var crop: Crop = Crop.FULL
+        set(value) {
+            if (field == value) return
+            field = value
+            refit()
+        }
 
     var onError: (() -> Unit)? = null
     val isPlaying: Boolean get() = try { player.isPlaying } catch (_: Exception) { false }
@@ -66,7 +89,7 @@ class ExoRtmpPlayer(
 
     /** Re-run the aspect fit (e.g. after a fullscreen toggle changes the container). */
     fun refit() {
-        lastVideoSize?.let { fitSurfaceToVideo(it) }
+        lastVideoSize?.let { fitViewToVideo(it) }
     }
     val timeMs: Long get() = try { player.currentPosition } catch (_: Exception) { -1 }
     val lengthMs: Long
@@ -85,13 +108,13 @@ class ExoRtmpPlayer(
             override fun onVideoSizeChanged(videoSize: VideoSize) {
                 DebugLog.log("PLAYER", "video size ${videoSize.width}x${videoSize.height}")
                 lastVideoSize = videoSize
-                fitSurfaceToVideo(videoSize)
+                fitViewToVideo(videoSize)
             }
         })
     }
 
     /**
-     * Letterboxes the SurfaceView to the video's aspect ratio so the
+     * Letterboxes the TextureView to the video's aspect ratio so the
      * picture is not stretched. The dual-lens frame is 640x720 (two
      * stacked 640x360 pictures), taller than 16:9.
      * Portrait: the view fills the container width and the container
@@ -104,15 +127,24 @@ class ExoRtmpPlayer(
      * container is wide-and-short (match_parent x 220dp), so the old
      * `cw > ch` test took the landscape branch and squeezed the video
      * into a narrow centred column (the 2026-11-23 screenshot).
+     *
+     * v1.2.2: the fit is crop-aware — TOP/BOTTOM show one 640x360 half,
+     * so the view is sized for 640x360 (16:9), and the crop transform
+     * (2x vertical scale) fills it without distortion.
      */
-    private fun fitSurfaceToVideo(videoSize: VideoSize) {
+    private fun fitViewToVideo(videoSize: VideoSize) {
         val vw = videoSize.width
         val vh = videoSize.height
         if (vw <= 0 || vh <= 0) return
         val ratio = videoSize.pixelWidthHeightRatio.takeIf { it > 0f }?.toDouble() ?: 1.0
         val videoW = vw * ratio
-        val videoH = vh.toDouble()
-        surfaceView.post {
+        // A cropped half is 640x360; the full frame is 640x720.
+        val videoH = if (crop == Crop.FULL) vh.toDouble() else vh / 2.0
+        if (fixedSize) {
+            applyCrop()
+            return
+        }
+        textureView.post {
             val cw = container.width
             val ch = container.height
             if (cw <= 0 || ch <= 0) return@post
@@ -128,13 +160,13 @@ class ExoRtmpPlayer(
                     .coerceIn(dp(220), (appContext.resources.displayMetrics.heightPixels * 0.65).toInt())
                 w to h
             }
-            val lp = (surfaceView.layoutParams as? FrameLayout.LayoutParams)
+            val lp = (textureView.layoutParams as? FrameLayout.LayoutParams)
                 ?: FrameLayout.LayoutParams(w, h)
             if (lp.width != w || lp.height != h) {
                 lp.width = w
                 lp.height = h
                 lp.gravity = Gravity.CENTER
-                surfaceView.layoutParams = lp
+                textureView.layoutParams = lp
             }
             if (!landscape) {
                 val clp = container.layoutParams
@@ -143,6 +175,27 @@ class ExoRtmpPlayer(
                     container.layoutParams = clp
                 }
             }
+            applyCrop()
+        }
+    }
+
+    /**
+     * Crops the texture to one half of the combined frame. The transform
+     * scales the texture 2x vertically: pivoted at the top edge it shows
+     * the top half (gun lens), pivoted at the bottom edge the bottom
+     * half (ball lens). FULL is the identity (whole 640x720 frame).
+     */
+    private fun applyCrop() {
+        textureView.post {
+            val h = textureView.height
+            if (h <= 0) return@post
+            val m = Matrix()
+            when (crop) {
+                Crop.FULL -> { /* identity */ }
+                Crop.TOP -> m.setScale(1f, 2f, 0f, 0f)
+                Crop.BOTTOM -> m.setScale(1f, 2f, 0f, h.toFloat())
+            }
+            textureView.setTransform(m)
         }
     }
 
@@ -178,25 +231,10 @@ class ExoRtmpPlayer(
     fun pause() { try { player.pause() } catch (_: Exception) {} }
     fun resume() { try { player.play() } catch (_: Exception) {} }
 
-    /**
-     * Snapshot of the current frame via PixelCopy from the SurfaceView.
-     * This is the v1.1.6 approach — it proved frames are decoded even
-     * when the SurfaceView itself showed black inside a ScrollView.
-     */
+    /** Snapshot of the current frame (TextureView bitmap, no PixelCopy needed). */
     fun snapshot(onResult: (Bitmap?) -> Unit) {
         try {
-            val w = surfaceView.width
-            val h = surfaceView.height
-            if (w <= 0 || h <= 0) {
-                onResult(null)
-                return
-            }
-            val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-            PixelCopy.request(
-                surfaceView, bmp,
-                { result -> onResult(if (result == PixelCopy.SUCCESS) bmp else null) },
-                Handler(Looper.getMainLooper()),
-            )
+            onResult(textureView.bitmap)
         } catch (_: Exception) {
             onResult(null)
         }

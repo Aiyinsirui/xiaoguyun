@@ -10,7 +10,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.SeekBar
-import android.view.SurfaceView
+import android.view.TextureView
 import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -91,12 +91,13 @@ class PlaybackActivity : AppCompatActivity() {
         sbTimeline = findViewById(R.id.sbTimeline)
         val etDate = findViewById<EditText>(R.id.etDate)
         etDate.setText(currentDate)
-        // v1.2.0: SurfaceView created programmatically (see LiveActivity).
+        // v1.2.2: TextureView (programmatic, no background — see
+        // ExoRtmpPlayer). Same as the live page's big view.
         val videoContainer = findViewById<FrameLayout>(R.id.videoContainer)
-        val surfaceView = SurfaceView(this)
-        videoContainer.addView(surfaceView, FrameLayout.LayoutParams(
+        val textureView = android.view.TextureView(this)
+        videoContainer.addView(textureView, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-        player = ExoRtmpPlayer(this, surfaceView, videoContainer)
+        player = ExoRtmpPlayer(this, textureView, videoContainer)
         val store = TokenStore(this)
         api = ApiClient(store)
         ws = WsClient(store)

@@ -27,13 +27,15 @@ import kotlin.random.Random
  * event 6) answered with pong (event 7).
  *
  * TODO (unverified — see AUDIT.md §3): this has never run against the real
- * server. In particular the FLV audio-tag first byte is sent as 0x70
- * (SoundFormat 7 = G.711 A-law, SoundRate code 0, 8-bit samples, mono);
- * FLV has no 8 kHz rate code, so the server may expect a different rate
- * code — if the peer hears silence/garbage, try 0x72 (rate code 1) first.
- * The RTMP URL split (app = path minus last segment, stream key = last
- * segment, e.g. app "video/<sn>", key "3") is also an assumption from the
+ * server. The RTMP URL split (app = path minus last segment, stream key =
+ * last segment, e.g. app "video/<sn>", key "3") is an assumption from the
  * URL shape; confirm with the real `addr` from a code-22 reply.
+ *
+ * v1.2.2: the audio-tag byte is now 0x72 (was 0x70). The camera's own
+ * stream uses 0x72 (SoundFormat 7 = G.711 A-law, SoundSize 1 = 16-bit
+ * samples); with 0x70 the peer heard nothing (probed 2026-11-23 from the
+ * live stream's own audio tags). The TALK debug logs showed the publish
+ * itself connecting and sending frames, so the byte was the problem.
  */
 class RtmpPublisher(private val url: String) {
 
@@ -101,7 +103,10 @@ class RtmpPublisher(private val url: String) {
     fun sendAudio(g711: ByteArray) {
         if (!running.get() || streamId == 0) return
         val payload = ByteArray(g711.size + 1)
-        payload[0] = 0x70.toByte() // TODO: FLV audio tag first byte, see class doc.
+        // v1.2.2: 0x72, not 0x70. The camera's own stream uses 0x72
+        // (SoundFormat 7 = G.711 A-law, SoundSize 1 = 16-bit samples);
+        // 0x70 (8-bit) made the peer hear nothing (probed 2026-11-23).
+        payload[0] = 0x72.toByte()
         g711.copyInto(payload, 1)
         val ts = (System.currentTimeMillis() - startMs).toInt()
         try {

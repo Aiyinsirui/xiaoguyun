@@ -12,7 +12,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.view.GestureDetector
 import android.view.MotionEvent
-import android.view.SurfaceView
+import android.view.TextureView
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.Button
@@ -25,7 +25,7 @@ import com.albert.xiaoguyun.R
 import com.albert.xiaoguyun.net.ApiClient
 import com.albert.xiaoguyun.net.TokenStore
 import com.albert.xiaoguyun.player.ExoRtmpPlayer
-import com.albert.xiaoguyun.player.VlcRecorder
+import com.albert.xiaoguyun.player.RtmpRecorder
 import com.albert.xiaoguyun.ws.WsClient
 import java.io.File
 import java.text.SimpleDateFormat
@@ -38,17 +38,32 @@ import java.util.concurrent.TimeUnit
 class LiveActivity : AppCompatActivity() {
     private lateinit var ws: WsClient
     private lateinit var player: ExoRtmpPlayer
-    private lateinit var recorder: VlcRecorder
+    private lateinit var pipTop: ExoRtmpPlayer
+    private lateinit var pipBottom: ExoRtmpPlayer
+    private var recorder: RtmpRecorder? = null
     private lateinit var intercom: IntercomManager
     private lateinit var tvStatus: TextView
+    private lateinit var btnExitFullscreen: Button
     private lateinit var sn: String
     private var netType: String? = null
     private var stream = WsClient.STREAM_HIGH
     private var muted = false
     private var rtmpAddr: String? = null
-    /** Dual-lens toggle. TODO: 1<->2 suffix swap is an assumption (AUDIT.md §4). */
-    private var lens = 1
     private var intercomMutedByTalk = false
+
+    // Three-pane view (v1.2.2): the camera is a three-video device
+    // (SN char 3), but /0 and /2 do NOT exist as RTMP streams (probed
+    // 2026-11-23) — the original's three panes are three CROPS of the
+    // one 640x720 combined frame: FULL (both lenses), TOP (gun lens),
+    // BOTTOM (ball lens). The big view shows one crop; the two PiPs
+    // show the other two. Tap a PiP to make it big; the 切换镜头 button
+    // cycles the big view's crop. Each pane is its own player on the
+    // same RTMP URL (PiPs are muted — only the big view plays sound).
+    private var bigCrop = ExoRtmpPlayer.Crop.FULL
+
+    // Smart tracking state (v1.2.2, code 16/17). Queried on open.
+    private var trackOn = false
+    private var trackSen = 2
 
     // PTZ (v1.2.1, root cause found in the original app's code):
     // the original re-sends the direction every 250 ms while held, and on
@@ -75,15 +90,34 @@ class LiveActivity : AppCompatActivity() {
         DebugLog.log("UI", "打开直播页 sn=$sn name=$name netType=$netType")
         findViewById<TextView>(R.id.tvTitle).text = name
         tvStatus = findViewById(R.id.tvLiveStatus)
-        // v1.2.0: SurfaceView created programmatically into videoContainer.
-        // TextureView with android:background crashes this device's
-        // constructor (UnsupportedOperationException, 2026-11-23).
+        // v1.2.2: TextureView (programmatic, NO background — the
+        // background attribute is what crashed v1.1.7's constructor).
+        // Big view + two PiPs (see the three-pane comment on bigCrop).
         val videoContainer = findViewById<FrameLayout>(R.id.videoContainer)
-        val surfaceView = SurfaceView(this)
-        videoContainer.addView(surfaceView, FrameLayout.LayoutParams(
+        val textureView = TextureView(this)
+        videoContainer.addView(textureView, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-        player = ExoRtmpPlayer(this, surfaceView, videoContainer)
-        // v1.1.6: the player is ExoPlayer + FlvEnhancedExtractor now; if it
+        player = ExoRtmpPlayer(this, textureView, videoContainer)
+        pipTop = makePip(videoContainer, topMarginDp = 8)
+        pipBottom = makePip(videoContainer, topMarginDp = 106)
+        pipTop.crop = ExoRtmpPlayer.Crop.TOP
+        pipBottom.crop = ExoRtmpPlayer.Crop.BOTTOM
+        pipTop.setMuted(true)
+        pipBottom.setMuted(true)
+        // v1.2.2: floating "退出全屏" — the old fullscreen hid every
+        // button, so the only exit was tapping the video (and a tap with
+        // any movement became a PTZ swipe instead). This button is
+        // visible only in fullscreen; BACK also exits fullscreen now.
+        btnExitFullscreen = Button(this).apply {
+            text = "退出全屏"
+            visibility = View.GONE
+            setOnClickListener { if (isFullscreen) toggleFullscreen() }
+        }
+        videoContainer.addView(btnExitFullscreen, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+            android.view.Gravity.BOTTOM or android.view.Gravity.END
+        ).apply { setMargins(0, 0, dp(8), dp(8)) })
+        // v1.2.2: the player is ExoPlayer + FlvEnhancedExtractor now; if it
         // still errors on this stream, the sub-stream is often a different
         // codec, so on the first playback error automatically retry with
         // the other definition before giving up.
@@ -103,7 +137,6 @@ class LiveActivity : AppCompatActivity() {
                 }
             }
         }
-        recorder = VlcRecorder(this)
         val store = TokenStore(this)
         ws = WsClient(store)
         ws.subscribeSns = listOf(sn)
@@ -195,30 +228,50 @@ class LiveActivity : AppCompatActivity() {
         bindPtz(R.id.btnLeft, WsClient.PTZ_LEFT)
         bindPtz(R.id.btnRight, WsClient.PTZ_RIGHT)
         findViewById<Button>(R.id.btnSnapshot).setOnClickListener { takeSnapshot() }
+        // v1.2.2: local recording is RtmpRecorder (RTMP stream copy to
+        // .flv). The old VlcRecorder produced a 0-byte file every time
+        // (VLC cannot play this stream, so its sout had nothing to
+        // record). start()/stop() block on the socket, so they run on a
+        // background thread and report back on the UI thread.
         val btnRecord = findViewById<Button>(R.id.btnRecord)
         btnRecord.setOnClickListener {
-            DebugLog.log("UI", "点录像按钮 isRecording=${recorder.isRecording}")
-            if (recorder.isRecording) {
-                val f = recorder.stop()
+            val rec = recorder
+            if (rec != null && rec.isRecording) {
                 btnRecord.text = "本地录像"
-                val size = f?.length() ?: 0
-                Toast.makeText(this, if (size > 0) "录像已保存：${f?.absolutePath}（${size / 1024} KB）" else "录像文件为空，sout 录制可能未成功（见 TODO）", Toast.LENGTH_LONG).show()
+                btnRecord.isEnabled = false
+                Thread {
+                    val f = rec.stop()
+                    recorder = null
+                    runOnUiThread {
+                        btnRecord.isEnabled = true
+                        val size = f?.length() ?: 0
+                        Toast.makeText(this, if (size > 0) "录像已保存：${f?.absolutePath}（${size / 1024} KB，可用电脑 VLC 打开）" else "录像文件为空：流一直没开始（取流失败或连接被断开）", Toast.LENGTH_LONG).show()
+                    }
+                }.start()
             } else {
                 val addr = rtmpAddr
-                DebugLog.log("UI", "取流结果 addr=${addr ?: "空"}")
                 if (addr.isNullOrBlank()) {
                     Toast.makeText(this, "还没有直播地址", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
                 val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
                 val dir = File(getExternalFilesDir(Environment.DIRECTORY_MOVIES), "xiaoguyun")
-                val out = File(dir, "live_${sn}_$stamp.ts")
-                if (recorder.start(addr, out)) {
-                    btnRecord.text = "停止录像"
-                    Toast.makeText(this, "正在录像：${out.absolutePath}", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this, "录像启动失败", Toast.LENGTH_SHORT).show()
-                }
+                val out = File(dir, "live_${sn}_$stamp.flv")
+                btnRecord.isEnabled = false
+                Thread {
+                    val newRec = RtmpRecorder(addr, out)
+                    val ok = newRec.start()
+                    runOnUiThread {
+                        btnRecord.isEnabled = true
+                        if (ok) {
+                            recorder = newRec
+                            btnRecord.text = "停止录像"
+                            Toast.makeText(this, "正在录像：${out.absolutePath}", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(this, "录像启动失败：${newRec.lastError}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }.start()
             }
         }
         findViewById<Button>(R.id.btnLens).setOnClickListener { switchLens() }
@@ -248,6 +301,21 @@ class LiveActivity : AppCompatActivity() {
             DebugLog.log("UI", "点云台复位 dir=0")
             Toast.makeText(this, "执行方向复位中…", Toast.LENGTH_SHORT).show()
         }
+        // v1.2.2: smart tracking (智能追踪) — the camera's own feature:
+        // when on, the ball lens follows movement by itself (that is why
+        // it rotates with nobody touching it). Original app: code 16
+        // settrack {sw, sen} / code 17 gettrack, in DeviceSettingActivity.
+        // The switch lives on the camera, not in the app — it stays on
+        // until it is turned off here (or in the original app).
+        findViewById<Button>(R.id.btnTrack).setOnClickListener {
+            val newSw = if (trackOn) 0 else 1
+            ws.setTrack(sn, newSw, trackSen)
+            trackOn = newSw == 1
+            updateTrackButton()
+            DebugLog.log("UI", "智能追踪 ${if (trackOn) "开" else "关"} sen=$trackSen")
+            Toast.makeText(this, "智能追踪已${if (trackOn) "开启" else "关闭"}", Toast.LENGTH_SHORT).show()
+        }
+        refreshTrackState()
         // v1.2.1: fullscreen (button + single tap on the video).
         isFullscreen = savedInstanceState?.getBoolean("fullscreen") == true
         findViewById<Button>(R.id.btnFullscreen).setOnClickListener { toggleFullscreen() }
@@ -286,6 +354,15 @@ class LiveActivity : AppCompatActivity() {
         outState.putBoolean("fullscreen", isFullscreen)
     }
 
+    /** v1.2.2: BACK exits fullscreen first (before, it left the page). */
+    override fun onBackPressed() {
+        if (isFullscreen) {
+            toggleFullscreen()
+            return
+        }
+        super.onBackPressed()
+    }
+
     /** Fullscreen = landscape + all controls hidden, video fills the screen.
      * Tap the video (or the button) again to exit. Rotation recreates the
      * page and re-requests the stream (a few seconds), same as rotating
@@ -304,13 +381,84 @@ class LiveActivity : AppCompatActivity() {
             controls?.visibility = View.GONE
             title?.visibility = View.GONE
             fsBtn?.text = "退出全屏"
+            btnExitFullscreen.visibility = View.VISIBLE
         } else {
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             controls?.visibility = View.VISIBLE
             title?.visibility = View.VISIBLE
             fsBtn?.text = "全屏"
+            btnExitFullscreen.visibility = View.GONE
         }
         player.refit()
+        pipTop.refit()
+        pipBottom.refit()
+    }
+
+    // ---- three-pane helpers (v1.2.2) ----
+
+    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
+
+    /** One PiP: a small fixed-size TextureView in the video container's
+     * top-right corner, with its own (muted) player. Tap to make it big. */
+    private fun makePip(container: FrameLayout, topMarginDp: Int): ExoRtmpPlayer {
+        val tv = TextureView(this)
+        val lp = FrameLayout.LayoutParams(
+            dp(160), dp(90),
+            android.view.Gravity.TOP or android.view.Gravity.END
+        )
+        lp.setMargins(0, dp(topMarginDp), dp(8), 0)
+        container.addView(tv, lp)
+        val p = ExoRtmpPlayer(this, tv, container, fixedSize = true)
+        tv.setOnClickListener { onPipTapped(p) }
+        return p
+    }
+
+    /** The tapped PiP's crop becomes the big view's crop; the PiPs take
+     * the other two crops. */
+    private fun onPipTapped(pip: ExoRtmpPlayer) {
+        bigCrop = pip.crop
+        applyCrops()
+        DebugLog.log("UI", "点小画面换大画面 crop=$bigCrop")
+    }
+
+    private fun applyCrops() {
+        player.crop = bigCrop
+        val rest = ExoRtmpPlayer.Crop.entries.filter { it != bigCrop }
+        pipTop.crop = rest[0]
+        pipBottom.crop = rest[1]
+    }
+
+    /** Plays the same RTMP URL on all three panes. */
+    private fun playAll(addr: String) {
+        player.play(addr)
+        pipTop.play(addr)
+        pipBottom.play(addr)
+    }
+
+    private fun cropName(c: ExoRtmpPlayer.Crop): String = when (c) {
+        ExoRtmpPlayer.Crop.FULL -> "双镜头（全画面）"
+        ExoRtmpPlayer.Crop.TOP -> "枪机镜头（上半）"
+        ExoRtmpPlayer.Crop.BOTTOM -> "球机镜头（下半）"
+    }
+
+    // ---- smart tracking helpers (v1.2.2, code 16/17) ----
+
+    private fun refreshTrackState() {
+        ws.requestTrack(sn) { obj ->
+            runOnUiThread {
+                val data = obj?.optJSONObject("data") ?: obj
+                val sw = data?.optInt("sw", -1) ?: -1
+                val sen = data?.optInt("sen", -1) ?: -1
+                if (sw >= 0) trackOn = sw == 1
+                if (sen >= 0) trackSen = sen
+                updateTrackButton()
+            }
+        }
+    }
+
+    private fun updateTrackButton() {
+        findViewById<Button>(R.id.btnTrack).text =
+            "智能追踪：${if (trackOn) "开" else "关"}"
     }
 
     private fun bindPtz(id: Int, dir: Int) {
@@ -361,18 +509,13 @@ class LiveActivity : AppCompatActivity() {
                 }
                 videoRetries = 0
                 rtmpAddr = addr
-                lens = when {
-                    addr.endsWith("/1") -> 1
-                    addr.endsWith("/2") -> 2
-                    else -> 1
-                }
                 // TODO §5-#1: RTMP address shape is unverified statically.
                 // Only the host is shown in the UI; full URL is passed
                 // straight to VLC and never logged.
                 val host = addr.substringAfter("://").substringBefore("/")
                 tvStatus.text = "已拿到直播地址（$host，${if (stream == WsClient.STREAM_HIGH) "高清" else "流畅"}），正在播放…"
                 playErrored = false
-                player.play(addr)
+                playAll(addr)
                 // v1.1.4 watchdog: if VLC still has no video 8 s after the
                 // address arrived, say so explicitly — distinguishes "no
                 // address" from "address OK but player gets no frames".
@@ -387,30 +530,21 @@ class LiveActivity : AppCompatActivity() {
     }
 
     /**
-     * Dual-lens switch (grab-ball dual camera). No lens/channel parameter
-     * exists in code 22; the original app keeps one RTMP address and two
-     * surfaces. TODO: this swaps the address suffix 1<->2, which is only
-     * an assumption from the /video/<sn>/1|/2 shape — verify with the real
-     * addr; if the addr has no such suffix the button reports it and does
-     * nothing.
+     * Lens switch (v1.2.2): cycles the BIG view's crop — full (both
+     * lenses) -> gun lens (top half) -> ball lens (bottom half) -> full.
+     * The old implementation swapped the RTMP address suffix 1<->2,
+     * which was wrong: /2 does not exist as a stream (probed
+     * 2026-11-23), so switching froze the player on a dead URL. The
+     * two lenses are the two halves of the one combined frame.
      */
     private fun switchLens() {
-        val addr = rtmpAddr
-        if (addr.isNullOrBlank()) {
-            Toast.makeText(this, "还没有直播地址", Toast.LENGTH_SHORT).show()
-            return
+        bigCrop = when (bigCrop) {
+            ExoRtmpPlayer.Crop.FULL -> ExoRtmpPlayer.Crop.TOP
+            ExoRtmpPlayer.Crop.TOP -> ExoRtmpPlayer.Crop.BOTTOM
+            ExoRtmpPlayer.Crop.BOTTOM -> ExoRtmpPlayer.Crop.FULL
         }
-        if (!addr.endsWith("/1") && !addr.endsWith("/2")) {
-            Toast.makeText(this, "当前直播地址无 1/2 镜头后缀，无法切换（需实测确认地址形态）", Toast.LENGTH_LONG).show()
-            return
-        }
-        lens = if (lens == 1) 2 else 1
-        val newAddr = addr.dropLast(1) + lens
-        rtmpAddr = newAddr
-        ws.clearVideoCache()
-        tvStatus.text = "正在切换到镜头 $lens…"
-        player.play(newAddr)
-        Toast.makeText(this, "已切换到镜头 $lens（地址后缀假设，未实测）", Toast.LENGTH_SHORT).show()
+        applyCrops()
+        Toast.makeText(this, "大画面：${cropName(bigCrop)}", Toast.LENGTH_SHORT).show()
     }
 
     private fun takeSnapshot() {
@@ -457,8 +591,10 @@ class LiveActivity : AppCompatActivity() {
     override fun onDestroy() {
         try { ptzFuture?.cancel(true); ptzExecutor.shutdownNow() } catch (_: Exception) {}
         try { if (intercom.isTalking) intercom.stop() } catch (_: Exception) {}
-        try { recorder.release() } catch (_: Exception) {}
+        try { recorder?.release() } catch (_: Exception) {}
         try { player.release() } catch (_: Exception) {}
+        try { pipTop.release() } catch (_: Exception) {}
+        try { pipBottom.release() } catch (_: Exception) {}
         ws.disconnect()
         super.onDestroy()
     }

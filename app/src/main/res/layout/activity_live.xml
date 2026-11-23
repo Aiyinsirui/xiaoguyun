@@ -66,6 +66,9 @@
             <Button android:id="@+id/btnResetPtz" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="8dp"
                 android:text="云台复位（回初始位置）" />
+            <Button android:id="@+id/btnTrack" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="8dp"
+                android:text="智能追踪：查询中…" />
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 android:text="云台位置由摄像头本身保持，退出重进不会复位（除非点复位）。预置位/巡航：原 App 静态代码中无对应命令码，未提供入口。" />

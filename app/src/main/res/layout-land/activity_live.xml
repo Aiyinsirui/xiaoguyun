@@ -61,6 +61,9 @@
                 <Button android:id="@+id/btnResetPtz" android:layout_width="0dp"
                     android:layout_height="wrap_content" android:layout_weight="1"
                     android:text="云台复位" />
+                <Button android:id="@+id/btnTrack" android:layout_width="0dp"
+                    android:layout_height="wrap_content" android:layout_weight="1"
+                    android:text="智能追踪：查询中…" />
             </LinearLayout>
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:layout_marginTop="16dp" android:text="云台：点按转一下，松开即停；按住连续转；也可滑动画面；点复位回初始位置" />

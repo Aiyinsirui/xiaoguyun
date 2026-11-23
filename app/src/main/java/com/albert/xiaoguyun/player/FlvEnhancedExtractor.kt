@@ -15,6 +15,7 @@ import androidx.media3.extractor.HevcConfig
 import androidx.media3.extractor.PositionHolder
 import androidx.media3.extractor.SeekMap
 import androidx.media3.extractor.TrackOutput
+import com.albert.xiaoguyun.net.G711
 
 /**
  * FLV extractor that also handles what stock Media3 / VLC 3.x cannot:
@@ -27,8 +28,10 @@ import androidx.media3.extractor.TrackOutput
  *   prefixed NAL units (CodedFrames, no composition-time field).
  *
  * Reference: FFmpeg libavformat/flvdec.c (flv_read_packet), enhanced-rtmp
- * spec. Audio tags are skipped: this camera's audio is G.711, which
- * Media3 cannot decode from FLV; video-only keeps live working first.
+ * spec. Audio tags are decoded: this camera's audio is G.711 A-law
+ * (FLV sound byte 0x72, 8 kHz mono), decoded to PCM16 and output as a
+ * raw-audio track so the live page has sound (v1.2.2; before that the
+ * audio tags were skipped and live was video-only).
  * Local files do NOT use this extractor (default extractors handle them).
  */
 @UnstableApi
@@ -89,6 +92,12 @@ class FlvEnhancedExtractor : Extractor {
     private var nalUnitLengthFieldLength = 4
     private var isHevc = false
 
+    // v1.2.2: G.711 A-law audio track (8 kHz mono -> PCM16).
+    private var audioOutput: TrackOutput? = null
+    private var hasAudioFormat = false
+    private var pcmBuffer = ByteArray(4096)
+    private val pcmData = ParsableByteArray()
+
     override fun sniff(input: ExtractorInput): Boolean {
         input.peekFully(scratch.data, 0, 3)
         scratch.setPosition(0)
@@ -116,6 +125,7 @@ class FlvEnhancedExtractor : Extractor {
             outputFirstSample = false
             hasOutputFormat = false
             hasOutputKeyframe = false
+            hasAudioFormat = false
         } else {
             state = STATE_READING_TAG_HEADER
         }
@@ -152,8 +162,12 @@ class FlvEnhancedExtractor : Extractor {
         headerBuffer.skipBytes(4)
         val flags = headerBuffer.readUnsignedByte()
         val hasVideo = (flags and 0x01) != 0
+        val hasAudio = (flags and 0x04) != 0
         if (hasVideo && videoOutput == null) {
             videoOutput = extractorOutput?.track(TAG_TYPE_VIDEO, C.TRACK_TYPE_VIDEO)
+        }
+        if (hasAudio && audioOutput == null) {
+            audioOutput = extractorOutput?.track(TAG_TYPE_AUDIO, C.TRACK_TYPE_AUDIO)
         }
         extractorOutput?.endTracks()
         bytesToNextTagHeader = headerBuffer.readInt() - FLV_HEADER_SIZE + 4
@@ -179,8 +193,11 @@ class FlvEnhancedExtractor : Extractor {
         if (tagType == TAG_TYPE_VIDEO && videoOutput != null) {
             ensureReadyForMediaOutput()
             wasSampleOutput = consumeVideoTag(prepareTagData(input))
+        } else if (tagType == TAG_TYPE_AUDIO && audioOutput != null) {
+            ensureReadyForMediaOutput()
+            wasSampleOutput = consumeAudioTag(prepareTagData(input))
         } else {
-            // Audio / script / unknown: skip the payload unread.
+            // Script / unknown: skip the payload unread.
             input.skipFully(tagDataSize)
         }
         if (!outputFirstSample && wasSampleOutput) {
@@ -231,6 +248,45 @@ class FlvEnhancedExtractor : Extractor {
         } else {
             consumeLegacy(data, first and 0x0F, frameType, timeUs)
         }
+    }
+
+    /**
+     * Parses one audio tag's payload. This camera sends G.711 A-law
+     * (sound byte 0x72: format 7, 8 kHz, 16-bit samples, mono — probed
+     * from the real stream 2026-11-23). Each A-law byte decodes to one
+     * PCM16 sample; a tag is one 20 ms frame (160 bytes -> 320 PCM bytes).
+     * Returns true if a sample was output.
+     */
+    private fun consumeAudioTag(data: ParsableByteArray): Boolean {
+        if (data.bytesLeft() < 1) return false
+        val first = data.readUnsignedByte()
+        val format = (first shr 4) and 0x0F
+        if (format != 7) return false // only G.711 A-law is expected here
+        val output = audioOutput ?: return false
+        if (!hasAudioFormat) {
+            output.format(
+                Format.Builder()
+                    .setSampleMimeType(MimeTypes.AUDIO_RAW)
+                    .setSampleRate(8000)
+                    .setChannelCount(1)
+                    .setPcmEncoding(C.ENCODING_PCM_16BIT)
+                    .build()
+            )
+            hasAudioFormat = true
+        }
+        val count = data.bytesLeft()
+        if (count <= 0) return false
+        val pcmBytes = count * 2
+        if (pcmBytes > pcmBuffer.size) pcmBuffer = ByteArray(pcmBytes)
+        for (i in 0 until count) {
+            val s = G711.alaw2linear(data.data[data.position + i]).toInt()
+            pcmBuffer[i * 2] = (s and 0xFF).toByte()
+            pcmBuffer[i * 2 + 1] = ((s shr 8) and 0xFF).toByte()
+        }
+        pcmData.reset(pcmBuffer, pcmBytes)
+        output.sampleData(pcmData, pcmBytes)
+        output.sampleMetadata(currentTimestampUs(), 0, pcmBytes, 0, null)
+        return true
     }
 
     private fun consumeEnhanced(
