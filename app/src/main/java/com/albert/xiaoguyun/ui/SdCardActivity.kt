@@ -66,6 +66,7 @@ class SdCardActivity : AppCompatActivity() {
             val i = Intent(this, PlaybackActivity::class.java)
             i.putExtra("sn", sn); i.putExtra("source", "sd"); startActivity(i)
         }
+        ws.subscribeSns = listOf(sn)
         ws.connect()
     }
 

@@ -70,7 +70,6 @@ class DeviceListActivity : AppCompatActivity() {
         ws.listener = object : WsClient.Listener {
             override fun onConnected() {
                 runOnUiThread { tvStatus.text = "信令已连接，正在订阅设备状态…" }
-                ws.subscribe(devices.map { it.sn })
             }
             override fun onDisconnected(reason: String) {
                 runOnUiThread { tvStatus.text = "信令断开：$reason（自动重连中）" }
@@ -106,6 +105,7 @@ class DeviceListActivity : AppCompatActivity() {
                 devices.clear(); devices.addAll(list); adapter.notifyDataSetChanged()
                 tvEmpty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
                 tvStatus.text = "设备 ${list.size} 台，正在订阅在线状态…"
+                ws.subscribeSns = list.map { it.sn }
                 ws.connect()
             } catch (e: Exception) {
                 val msg = (e as? ApiException)?.message ?: e.message ?: "加载失败"

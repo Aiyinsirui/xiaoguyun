@@ -164,6 +164,7 @@ class PlaybackActivity : AppCompatActivity() {
                 if (days > 0) cloudDays = days.toString()
             } catch (_: Exception) { }
         }
+        ws.subscribeSns = listOf(sn)
         ws.connect()
         ticker.post(tickRunnable)
     }

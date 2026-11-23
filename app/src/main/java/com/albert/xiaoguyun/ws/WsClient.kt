@@ -72,6 +72,34 @@ class WsClient(private val store: TokenStore) {
     private val pending = ConcurrentHashMap<Int, (JSONObject) -> Unit>()
     private var lastRtmpAt = 0L
     private var lastRtmpAddr: String? = null
+    /**
+     * v1.1.4 — auto-subscribe. The server rejects commands on a socket that
+     * has not subscribed ("此SN号未订阅", code 404): the detail page proved
+     * it, returning that error for code 52 because its fresh socket never
+     * sent code 90. Every screen sets [subscribeSns] before connect(); on
+     * every (re)connect the socket subscribes itself, and dependent requests
+     * wait for the state-90/91 ack (max 3 s) before being sent, so videoplay
+     * can no longer race ahead of the subscription.
+     */
+    var subscribeSns: List<String> = emptyList()
+    private var subscribedAck = false
+    private var authFailCount = 0
+
+    /** Runs [action] once the subdevice ack arrived, or after 3 s max. */
+    private fun runWhenSubscribed(action: () -> Unit) {
+        if (subscribeSns.isEmpty() || subscribedAck) { action(); return }
+        scope.launch {
+            var waited = 0
+            while (!subscribedAck && waited < 3000) { delay(100); waited += 100 }
+            action()
+        }
+    }
+
+    private fun autoSubscribe() {
+        if (subscribeSns.isEmpty()) return
+        subscribe(subscribeSns)
+        subscribeSns.forEach { subscribeOneDevice(it) }
+    }
 
     fun connect() {
         wantConnected = true
@@ -83,6 +111,8 @@ class WsClient(private val store: TokenStore) {
             override fun onOpen(handshake: ServerHandshake?) {
                 connecting.set(false)
                 reconnectDelayMs = 1000L
+                subscribedAck = subscribeSns.isEmpty()
+                autoSubscribe()
                 listener?.onConnected()
             }
             override fun onMessage(message: String) = handleMessage(message)
@@ -140,15 +170,17 @@ class WsClient(private val store: TokenStore) {
      */
     fun request(code: Int, message: String, sn: String, data: JSONObject? = null,
                 timeoutMs: Long = 5000, onResult: (JSONObject?) -> Unit) {
-        pending[code] = { obj -> onResult(obj) }
-        if (!sendRaw(frame(code, message, sn, data))) {
-            pending.remove(code)
-            onResult(null)
-            return
-        }
-        scope.launch {
-            delay(timeoutMs)
-            if (pending.remove(code) != null) onResult(null)
+        runWhenSubscribed {
+            pending[code] = { obj -> onResult(obj) }
+            if (!sendRaw(frame(code, message, sn, data))) {
+                pending.remove(code)
+                onResult(null)
+                return@runWhenSubscribed
+            }
+            scope.launch {
+                delay(timeoutMs)
+                if (pending.remove(code) != null) onResult(null)
+            }
         }
     }
 
@@ -174,14 +206,16 @@ class WsClient(private val store: TokenStore) {
             if (addr.isNotBlank()) { lastRtmpAddr = addr; lastRtmpAt = System.currentTimeMillis() }
             onAddr(addr.ifBlank { null })
         }
-        if (!sendRaw(frame(22, "videoplay", sn, JSONObject().put("stream", stream)))) {
-            pending.remove(22)
-            onAddr(null)
-            return
-        }
-        scope.launch {
-            delay(timeoutMs)
-            if (pending.remove(22) != null) onAddr(null)
+        runWhenSubscribed {
+            if (!sendRaw(frame(22, "videoplay", sn, JSONObject().put("stream", stream)))) {
+                pending.remove(22)
+                onAddr(null)
+                return@runWhenSubscribed
+            }
+            scope.launch {
+                delay(timeoutMs)
+                if (pending.remove(22) != null) onAddr(null)
+            }
         }
     }
 
@@ -201,12 +235,12 @@ class WsClient(private val store: TokenStore) {
     // ---- Playback: SD card via WS (codes 23/24/25/27/28) ----
     fun requestRecordDates(sn: String, date: String, onResult: (JSONObject) -> Unit) {
         pending[27] = onResult
-        sendRaw(frame(27, "recdate", sn, JSONObject().put("date", date)))
+        runWhenSubscribed { sendRaw(frame(27, "recdate", sn, JSONObject().put("date", date))) }
     }
 
     fun requestRecordList(sn: String, date: String, onResult: (JSONObject) -> Unit) {
         pending[23] = onResult
-        sendRaw(frame(23, "recinfo", sn, JSONObject().put("date", date)))
+        runWhenSubscribed { sendRaw(frame(23, "recinfo", sn, JSONObject().put("date", date))) }
     }
 
     fun requestRecordPlay(sn: String, recfile: String, date: String, locaSeconds: Int = 0,
@@ -219,7 +253,7 @@ class WsClient(private val store: TokenStore) {
         // (seconds offset inside the file). Fixed in v1.1.
         val data = JSONObject().put("recfile", recfile).put("continue", if (continuePlay) 1 else 0)
             .put("loca", locaSeconds).put("date", date)
-        sendRaw(frame(24, "recplay", sn, data))
+        runWhenSubscribed { sendRaw(frame(24, "recplay", sn, data)) }
     }
 
     /** Seek inside SD playback: recfast, loca = target offset in seconds. */
@@ -338,8 +372,10 @@ class WsClient(private val store: TokenStore) {
         val o = JSONObject()
         o.put("code", 40); o.put("message", "package"); o.put("sn", sn); o.put("state", 1)
         pending[40] = { obj -> onResult(obj) }
-        if (!sendRaw(o.toString())) { pending.remove(40); onResult(null); return }
-        scope.launch { delay(5000); if (pending.remove(40) != null) onResult(null) }
+        runWhenSubscribed {
+            if (!sendRaw(o.toString())) { pending.remove(40); onResult(null); return@runWhenSubscribed }
+            scope.launch { delay(5000); if (pending.remove(40) != null) onResult(null) }
+        }
     }
 
     /** code 54: query record-time list (raw JSON; fields unexpanded). */
@@ -377,6 +413,8 @@ class WsClient(private val store: TokenStore) {
             }
             when (code) {
                 90, 91 -> {
+                    subscribedAck = true
+                    authFailCount = 0
                     val map = mutableMapOf<String, DeviceState>()
                     val data = obj.optJSONArray("data")
                     if (data != null) {
@@ -402,11 +440,23 @@ class WsClient(private val store: TokenStore) {
                 }
                 100001 -> { /* TODO §5-#4: meaning unknown statically; ignored. */ }
                 401 -> {
-                    // Token-invalid: original app re-sends subdevice on
-                    // code==200 + state==401. Close the socket so onClose
-                    // triggers the reconnect loop, which re-subscribes on open.
+                    // v1.1.4 (audit S2): token-invalid must NOT loop forever.
+                    // The old code closed the socket, onClose re-connected,
+                    // the server answered 401 again — every 10 s, forever,
+                    // never prompting re-login. First 401: close + reconnect
+                    // (re-subscribe on the new socket, as before). Second
+                    // consecutive 401: stop, clear the dead token and tell
+                    // the UI to send the user back to login.
+                    authFailCount++
                     rawListener?.invoke(code, obj)
-                    try { client?.close() } catch (_: Exception) {}
+                    if (authFailCount >= 2) {
+                        wantConnected = false
+                        try { store.clear() } catch (_: Exception) {}
+                        listener?.onError("登录已过期，请重新登录")
+                        try { client?.close() } catch (_: Exception) {}
+                    } else {
+                        try { client?.close() } catch (_: Exception) {}
+                    }
                 }
                 else -> {
                     val waiter = pending.remove(code)

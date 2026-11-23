@@ -303,36 +303,50 @@ class ApiClient(private val store: TokenStore) {
      * -1 means permanent is not expanded statically and must be verified.
      * `ownedUser` is the owner's user id as a string.
      */
-    private fun shareBody(sn: String, phone: String, permission: String, usefulSeconds: Int): JSONObject {
-        val ownedUser = store.userId.takeIf { it != 0L }?.toString() ?: ""
-        val data = JSONObject().apply {
+    /**
+     * v1.1.4 (audit S1): the three share endpoints do NOT share one body
+     * shape in the original app:
+     * - share-to-account: wrapped `{code:41, message:"share", sn, data:{...,
+     *   targetPhone, ...}}`;
+     * - share-to-phone and accept-share: NO wrapper, flat body.
+     * The old code sent the wrapped shape to all three, so share-by-phone
+     * and accept-share were rejected. `useful` unit is still unconfirmed
+     * statically (kept as seconds, as before); verify with one real test.
+     */
+    private fun shareData(sn: String, phone: String, permission: String, usefulSeconds: Int, targetPhone: String? = null): JSONObject =
+        JSONObject().apply {
             put("createDate", System.currentTimeMillis())
-            put("ownedUser", ownedUser)
+            put("ownedUser", store.userId.takeIf { it != 0L }?.toString() ?: "")
             put("permission", permission)
             put("sn", sn)
             put("phone", phone)
+            if (targetPhone != null) put("targetPhone", targetPhone)
             put("useful", usefulSeconds)
             put("deviceToken", "")
         }
-        return JSONObject().apply {
+
+    private fun shareBodyWrapped(sn: String, phone: String, permission: String, usefulSeconds: Int): JSONObject =
+        JSONObject().apply {
             put("code", 41)
             put("message", "share")
             put("sn", sn)
-            put("data", data)
+            put("data", shareData(sn, phone, permission, usefulSeconds, targetPhone = phone))
         }
-    }
+
+    private fun shareBodyPlain(sn: String, phone: String, permission: String, usefulSeconds: Int): JSONObject =
+        shareData(sn, phone, permission, usefulSeconds)
 
     /** Share to a phone number (POST /deviceBind/device/sharePhone). */
     suspend fun shareToPhone(sn: String, phone: String, permission: String = "1,2", usefulSeconds: Int = -1): Envelope =
-        postJson("deviceBind/device/sharePhone", shareBody(sn, phone, permission, usefulSeconds), authed = true)
+        postJson("deviceBind/device/sharePhone", shareBodyPlain(sn, phone, permission, usefulSeconds), authed = true)
 
     /** Share to an account (POST /deviceBind/rabbit/device/share). Same body shape. */
     suspend fun shareToAccount(sn: String, phone: String, permission: String = "1,2", usefulSeconds: Int = -1): Envelope =
-        postJson("deviceBind/rabbit/device/share", shareBody(sn, phone, permission, usefulSeconds), authed = true)
+        postJson("deviceBind/rabbit/device/share", shareBodyWrapped(sn, phone, permission, usefulSeconds), authed = true)
 
     /** Accept a share (POST /deviceBind/device/share). Same body shape. */
     suspend fun acceptShare(sn: String, phone: String, permission: String = "1,2", usefulSeconds: Int = -1): Envelope =
-        postJson("deviceBind/device/share", shareBody(sn, phone, permission, usefulSeconds), authed = true)
+        postJson("deviceBind/device/share", shareBodyPlain(sn, phone, permission, usefulSeconds), authed = true)
 
     // ---- Cloud package / OTA ----
     suspend fun cloudInfo2(sn: String): Envelope = get("cloud/v3/app/getInfo?sn=$sn")

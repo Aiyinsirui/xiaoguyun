@@ -50,6 +50,7 @@ class DeviceDetailActivity : AppCompatActivity() {
         val store = TokenStore(this)
         api = ApiClient(store)
         ws = WsClient(store)
+        ws.subscribeSns = listOf(sn)
         ws.listener = object : WsClient.Listener {
             override fun onConnected() { runOnUiThread { loadWsInfo() } }
             override fun onDisconnected(reason: String) {}

@@ -64,6 +64,7 @@ class LiveActivity : AppCompatActivity() {
         recorder = VlcRecorder(this)
         val store = TokenStore(this)
         ws = WsClient(store)
+        ws.subscribeSns = listOf(sn)
         intercom = IntercomManager(
             context = this, ws = ws, api = ApiClient(store), sn = sn,
             rtmpAddr = { rtmpAddr },
@@ -76,15 +77,9 @@ class LiveActivity : AppCompatActivity() {
         ws.listener = object : WsClient.Listener {
             override fun onConnected() {
                 runOnUiThread {
-                    // v1.1.3: code 3 link is NOT sent here any more. v1.1.2 sent
-                    // link=1 on entry and link=0 on exit; in the original app
-                    // link=0 is sent ONLY after a successful REST unbind
-                    // (HomeFragment.unBindDevice), so exiting live told the
-                    // server/device the app had unbound it and the camera
-                    // reset itself and lost its WiFi. Subscribe (code 90/42)
-                    // is the safe pre-videoplay step, not link.
-                    ws.subscribe(listOf(sn))
-                    ws.subscribeOneDevice(sn)
+                    // v1.1.4: subscribe is now automatic on every (re)connect
+                    // (WsClient.subscribeSns); requestVideo waits for the
+                    // state-90 ack before sending code 22.
                     requestVideo()
                 }
             }
@@ -230,10 +225,19 @@ class LiveActivity : AppCompatActivity() {
                     else -> 1
                 }
                 // TODO §5-#1: RTMP address shape is unverified statically.
-                // Only the host/path are shown masked in the UI; full URL is
-                // passed straight to VLC and never logged.
-                tvStatus.text = "正在播放…"
+                // Only the host is shown in the UI; full URL is passed
+                // straight to VLC and never logged.
+                val host = addr.substringAfter("://").substringBefore("/")
+                tvStatus.text = "已拿到直播地址（$host），正在播放…"
                 player.play(addr)
+                // v1.1.4 watchdog: if VLC still has no video 8 s after the
+                // address arrived, say so explicitly — distinguishes "no
+                // address" from "address OK but player gets no frames".
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    if (!isFinishing && rtmpAddr == addr && !player.isPlaying) {
+                        tvStatus.text = "已拿到地址但 8 秒无画面：播放器未收到视频流（取流已成功，问题在播放环节，请截此屏）"
+                    }
+                }, 8000)
             }
         }
     }
