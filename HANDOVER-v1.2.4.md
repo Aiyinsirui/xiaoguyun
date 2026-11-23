@@ -137,6 +137,20 @@
 - 补光灯按钮：开=琥珀色，关=主题色。
 - 所有 view id 保持不变，逻辑代码无破坏性改动。
 
+### 3.6 AUDIT-v1.1.3 遗留项顺手清理（低风险四项，2026-11-23 晚）
+
+1. **M12 列表页返回不刷新（已真机验证）**：DeviceListActivity 新增 `onResume()`，
+   首次 resume（onCreate 已加载）跳过，之后从详情/直播返回自动 `loadDevices()`。
+   实测：启动只发 1 次 deviceBind/list；从直播页 BACK 返回后自动再发 1 次并刷新。
+2. **P1 找回密码重发验证码类型错误（编译核验）**：LoginActivity 的 btnSend 原来固定
+   `sendSms(forgot=false)`（10011 注册短信），改为按 `forgotMode` 选择，找回流程重发走 10012。
+3. **P2 录音权限授权后无反馈（编译核验）**：LiveActivity 补 `onRequestPermissionsResult`，
+   授权/拒绝均 Toast 明确提示。**有意不自动开对讲**：按住说话模型下授权弹窗关闭时手指已抬起，
+   自动 start 没有配对的 ACTION_UP 会导致麦克风卡在讲话状态；提示用户再按一次更安全。
+4. **M4 code 53 帧格式错误（编译核验，当前无 UI 调用点的死代码）**：setRecordTimeList
+   原来把参数包成 `{"data":{"data":"<param>"}}`，按原版改为裸字符串 `"data":"<param>"`，
+   用 sendRaw 直发完整帧，返回 Boolean。
+
 ---
 
 ## 4. 关键文件清单
@@ -148,8 +162,10 @@
 | `audio/AudioGain.kt` | 新增：软件 AGC（gateRms=120，增益 1~12，软限幅） |
 | `audio/MicSelfTest.kt` | 新增（临时诊断工具，**发布前移除广播注册**） |
 | `player/RtmpRecorder.kt` | 修 app/playName 切分；全链路日志；FLV 写入逻辑不变 |
-| `ws/WsClient.kt` | 清晰度常量交换；sendLed/requestLedState（查询走 runWhenSubscribed 门控） |
-| `ui/LiveActivity.kt` | 补光灯（回包/查询超时兜底/发送失败保护/5 分钟自动关）、按钮视觉反馈、默认流畅、MicSelfTest 注册 |
+| `ws/WsClient.kt` | 清晰度常量交换；sendLed/requestLedState（查询走 runWhenSubscribed 门控）；M4 修 code 53 帧 |
+| `ui/LiveActivity.kt` | 补光灯（回包/查询超时兜底/发送失败保护/5 分钟自动关）、按钮视觉反馈、默认流畅、MicSelfTest 注册、P2 权限回调 |
+| `ui/DeviceListActivity.kt` | M12：onResume 返回自动刷新（首次不重复） |
+| `ui/LoginActivity.kt` | P1：找回密码模式重发验证码走 10012 |
 | `res/layout(-land)/activity_live.xml` | 补光灯按钮、分区、文案精简、对讲主按钮样式 |
 
 ---
@@ -165,7 +181,12 @@
 4. **增强 FLV 兼容性**：录像视频 tag 为 0x1C 增强 FLV（摄像头推流即如此），旧播放器可能不认；
    新版 VLC/ffmpeg 5+ 支持。若用户反馈无法播放，再评估录制端转封装为标准 AVC/HEVC tag。
 5. v1.2.2 黑屏回归：本轮直播三画面渲染正常，未复现；保持观察。
-6. AUDIT-v1.1.3-review.md 遗留一般项多数未处理，按用户优先级排期。
+6. AUDIT-v1.1.3-review.md 进度：S2（401 死循环）、M9（云台 dir=0）、M10（0x72/竞态）、
+   M14（stream 映射）已在历史版本修复；本轮再清 M4/M12/P1/P2（见 3.6）。
+   **仍未处理的主要项**：S1 分享接口 body 形状（需实测 useful 单位）、M1 pending 单槽竞态、
+   M2 SD 回放超时、M5 云下载依赖取流、M6 明文 HTTP 跳过 token 刷新、M7 WS 多连接单例化、
+   M8 SN 第 5 位判 netType、M11 侦测设置硬编码 led=1（可复用本轮 code 11 查询能力修）、
+   P3 云台反转、P4 RTMP 缓存单例化。按用户优先级排期。
 7. 勿再添加 code 3 link 帧（v1.1.2 曾导致摄像头重置丢 WiFi，见 WsClient 注释）。
 8. 无预置位/巡航命令：原版静态代码确认不存在，勿编造。
 

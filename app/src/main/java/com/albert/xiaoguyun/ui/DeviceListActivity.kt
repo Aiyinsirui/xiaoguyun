@@ -37,6 +37,10 @@ class DeviceListActivity : AppCompatActivity() {
     // v1.2.3: a rapid double tap used to launch two LiveActivity instances —
     // six RTMP pulls at once, which could stall every player (black screen).
     private var lastLiveLaunchMs = 0L
+    // Audit M12: the first onResume() is part of the initial launch, where
+    // onCreate() already calls loadDevices(); only later resumes (returning
+    // from detail/live after unbind or rename) trigger a refresh.
+    private var firstResume = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -192,6 +196,17 @@ class DeviceListActivity : AppCompatActivity() {
                     startActivity(Intent(this@DeviceListActivity, LoginActivity::class.java)); finish()
                 }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Audit M12: refresh after returning from detail/live so an unbind or
+        // rename done on another page is reflected without tapping retry.
+        if (firstResume) {
+            firstResume = false
+        } else {
+            loadDevices()
         }
     }
 

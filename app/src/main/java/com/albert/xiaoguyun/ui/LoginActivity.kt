@@ -87,7 +87,9 @@ class LoginActivity : AppCompatActivity() {
             busy()
             lifecycleScope.launch {
                 try {
-                    api.sendSms(phone, forgot = false)
+                    // Audit P1: in forgot-password mode the resend must use the
+                    // 10012 SMS type, not the registration 10011 type.
+                    api.sendSms(phone, forgot = forgotMode)
                     Toast.makeText(this@LoginActivity, "验证码已发送", Toast.LENGTH_SHORT).show()
                     progress.visibility = View.GONE; btnLogin.isEnabled = true
                 } catch (e: Exception) { err((e as? ApiException)?.message ?: e.message ?: "发送失败") }

@@ -425,9 +425,16 @@ class WsClient(private val store: TokenStore) {
     fun requestRecordTimeList(sn: String, onResult: (JSONObject?) -> Unit) =
         request(54, "", sn, null, 5000, onResult)
 
-    /** code 53: TODO param string format unexpanded statically; API-ready only. */
-    fun setRecordTimeList(sn: String, param: String) =
-        send(53, "", sn, JSONObject().put("data", param))
+    /**
+     * code 53: set record-time schedule. Audit M4 fix — the original frame
+     * carries `data` as the raw param STRING itself (`"data":"<param>"`),
+     * not a nested object. The old call wrapped it twice, producing
+     * `"data":{"data":"<param>"}`; the method had no UI caller (dead code)
+     * but is now wire-correct for future use. Param format itself remains
+     * unexpanded statically.
+     */
+    fun setRecordTimeList(sn: String, param: String): Boolean =
+        sendRaw(JSONObject().put("code", 53).put("message", "").put("sn", sn).put("data", param).toString())
 
     private fun handleMessage(text: String) {
         DebugLog.log("WS<<", text.take(600))

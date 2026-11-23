@@ -754,6 +754,29 @@ class LiveActivity : AppCompatActivity() {
         }
     }
 
+    // Audit P2: the first press on the intercom button only requested the
+    // RECORD_AUDIO permission and then did nothing, so users had to press a
+    // second time. We do not auto-start talk here: the press-and-hold model
+    // means the finger is already up by the time the dialog closes, and
+    // starting without a matching ACTION_UP would leave the mic stuck open.
+    // A clear toast tells the user to press again instead.
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1) {
+            val granted = grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED
+            Toast.makeText(
+                this,
+                if (granted) "录音权限已授予，请按住按钮说话" else "未授予录音权限，对讲不可用",
+                Toast.LENGTH_SHORT,
+            ).show()
+            DebugLog.log("UI", "录音权限结果 granted=$granted")
+        }
+    }
+
     override fun onDestroy() {
         try { unregisterReceiver(micTestReceiver) } catch (_: Exception) {}
         try {
