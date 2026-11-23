@@ -10,8 +10,8 @@ android {
         applicationId = "com.albert.xiaoguyun"
         minSdk = 24
         targetSdk = 33
-        versionCode = 7
-        versionName = "1.1.5"
+        versionCode = 8
+        versionName = "1.1.6"
         ndk { abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a")) }
     }
     buildTypes {
@@ -38,7 +38,12 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("org.java-websocket:Java-WebSocket:1.5.4")
-    // RTMP playback: libVLC for Android 3.6.0 (VLC handles RTMP natively;
-    // ExoPlayer core does not support RTMP, so VLC is used here as primary).
+    // Playback v1.1.6: Media3 ExoPlayer + RTMP data source, with a custom
+    // FLV extractor (FlvEnhancedExtractor) that handles legacy AVC/HEVC
+    // and enhanced RTMP ('avc1'/'hvc1'). libVLC 3.x could not decode this
+    // camera's stream; libVLC stays only for VlcRecorder (local recording).
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-datasource-rtmp:1.3.1")
+    implementation("androidx.media3:media3-extractor:1.3.1")
     implementation("org.videolan.android:libvlc-all:3.6.0")
 }

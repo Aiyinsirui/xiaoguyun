@@ -19,7 +19,7 @@ import androidx.core.app.ActivityCompat
 import com.albert.xiaoguyun.R
 import com.albert.xiaoguyun.net.ApiClient
 import com.albert.xiaoguyun.net.TokenStore
-import com.albert.xiaoguyun.player.VlcPlayer
+import com.albert.xiaoguyun.player.ExoRtmpPlayer
 import com.albert.xiaoguyun.player.VlcRecorder
 import com.albert.xiaoguyun.ws.WsClient
 import java.io.File
@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit
 
 class LiveActivity : AppCompatActivity() {
     private lateinit var ws: WsClient
-    private lateinit var player: VlcPlayer
+    private lateinit var player: ExoRtmpPlayer
     private lateinit var recorder: VlcRecorder
     private lateinit var intercom: IntercomManager
     private lateinit var tvStatus: TextView
@@ -59,13 +59,11 @@ class LiveActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tvTitle).text = name
         tvStatus = findViewById(R.id.tvLiveStatus)
         val surface = findViewById<SurfaceView>(R.id.surface)
-        player = VlcPlayer(this, surface)
-        // v1.1.5: VLC (libVLC 3.x) fails on this camera's stream
-        // (EncounteredError while ~200 KB/s of stream data is arriving —
-        // the player cannot decode it, most likely H.265 in enhanced RTMP,
-        // which neither VLC 3.x nor ExoPlayer's FLV extractor supports).
-        // The sub-stream is often H.264, so on the first playback error
-        // automatically retry with the other definition before giving up.
+        player = ExoRtmpPlayer(this, surface)
+        // v1.1.6: the player is ExoPlayer + FlvEnhancedExtractor now; if it
+        // still errors on this stream, the sub-stream is often a different
+        // codec, so on the first playback error automatically retry with
+        // the other definition before giving up.
         player.onError = {
             runOnUiThread {
                 if (!triedFallback) {

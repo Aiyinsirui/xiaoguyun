@@ -22,7 +22,7 @@ import com.albert.xiaoguyun.net.ApiClient
 import com.albert.xiaoguyun.net.ApiException
 import com.albert.xiaoguyun.net.RecordFile
 import com.albert.xiaoguyun.net.TokenStore
-import com.albert.xiaoguyun.player.VlcPlayer
+import com.albert.xiaoguyun.player.ExoRtmpPlayer
 import com.albert.xiaoguyun.ws.WsClient
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -52,7 +52,7 @@ import java.util.Locale
 class PlaybackActivity : AppCompatActivity() {
     private lateinit var ws: WsClient
     private lateinit var api: ApiClient
-    private lateinit var player: VlcPlayer
+    private lateinit var player: ExoRtmpPlayer
     private lateinit var tvStatus: TextView
     private lateinit var tvDates: TextView
     private lateinit var tvPosition: TextView
@@ -90,7 +90,7 @@ class PlaybackActivity : AppCompatActivity() {
         sbTimeline = findViewById(R.id.sbTimeline)
         val etDate = findViewById<EditText>(R.id.etDate)
         etDate.setText(currentDate)
-        player = VlcPlayer(this, findViewById<SurfaceView>(R.id.surface))
+        player = ExoRtmpPlayer(this, findViewById<SurfaceView>(R.id.surface))
         val store = TokenStore(this)
         api = ApiClient(store)
         ws = WsClient(store)
