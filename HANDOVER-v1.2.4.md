@@ -172,8 +172,15 @@
 
 ## 5. 待办与风险（下一位接手优先看）
 
-1. **对讲人声端到端验证**：请用户对着平板说话 10 秒，拉 debug.log 确认原始峰值 >1000、
-   AGC 后峰值 9000+；再请设备端（摄像头侧）确认能听到人声。这是唯一未闭环的高优项。
+1. **对讲人声端到端验证（用户选择稍后再验，唯一未闭环高优项）**。操作步骤：
+   ① 平板打开直播页，等三画面出流；② 按住"对讲（按住说话）"按钮，用正常音量
+   对平板底部麦克风持续说话 10 秒后松开；③ 拉取
+   `/sdcard/Android/data/com.albert.xiaoguyun/files/debug.log`，过滤 `TALK 麦克风电平`，
+   预期说话时**原始峰值 >1000、AGC 后峰值 9000~17000**（环境底噪原始峰值仅 74~127，
+   对比非常明显）；④ 同时请人在摄像头旁确认喇叭能听到人声。
+   若原始峰值仍 <300：先查 `TALK 录音已启动 实际路由=` 是否为底部主麦，再考虑
+   `audio/MicSelfTest.kt` 广播自检（adb am broadcast -a com.albert.xiaoguyun.MIC_SELF_TEST
+   -p com.albert.xiaoguyun，约 40 秒，结果写同一 debug.log）。
 2. **发布前移除 MicSelfTest**：LiveActivity 中 RECEIVER_EXPORTED 广播注册（adb 诊断用），
    正式版应删除注册与 import，MicSelfTest.kt 可保留或一并删除。
 3. **补光灯 5 分钟自动关未做长等实测**：逻辑与原版同参数（300000ms），代码路径已核验；
