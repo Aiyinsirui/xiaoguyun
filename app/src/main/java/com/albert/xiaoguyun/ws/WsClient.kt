@@ -341,8 +341,13 @@ class WsClient(private val store: TokenStore) {
     fun sendLed(sn: String, led: Int) =
         send(11, "led", sn, JSONObject().put("led", led))
 
-    /** Query the current fill-light state (original sends led=3 on entry). */
-    fun requestLedState(sn: String) = sendLed(sn, 3)
+    /**
+     * Query the current fill-light state (original sends led=3 on entry).
+     * Gated on the subscribe ack: a raw [send] during socket setup is logged
+     * but silently dropped (sendRaw returns false when not open), which left
+     * the UI stuck on "querying…" forever.
+     */
+    fun requestLedState(sn: String) = runWhenSubscribed { sendLed(sn, 3) }
 
     fun requestDetection(sn: String, onResult: (JSONObject?) -> Unit) =
         request(15, "getdetection", sn, null, 5000, onResult)

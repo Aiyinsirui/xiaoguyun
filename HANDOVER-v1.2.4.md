@@ -98,17 +98,34 @@
 原版反编译依据：`DGSocketRepository.getLedSetParam`、`VideoLiveActivity.setLed/requestLedSet`、
 `VideoLiveClickControl`（ibVox/ibLedLand 两个切换按钮）。
 
-协议：
+协议（2026-11-23 晚真机实测确认）：
 - 发送：`frame(11, "led", sn, {"led": n})`；**n=1 开、n=0 关、n=3 查询当前状态**。
-- 回包：code/state=11，`data.led` 为 0/1，以回包为按钮状态真相。
+- 回包实测两种形态：
+  - 正常应答 `{"data":{"led":1,"utc":...},"code":11,"message":"ok"}`，data.led 即真实状态；
+  - 早期在旧 socket 上收到过 message="led"、data.led=3 的回显帧（非真实状态），
+    代码对 3 按"关态呈现"兜底，与原版 `setSelected(led==1)` 语义一致。
 - 原版进直播页自动发 led=3 查询；开启后 **5 分钟（300000ms）自动关闭**。
 
 实现：
-- WsClient：`sendLed()` 补全 KDoc（原 TODO 已落实），新增 `requestLedState(sn)`（=sendLed 3）。
+- WsClient：`sendLed()` 补全 KDoc（原 TODO 已落实），新增 `requestLedState(sn)`。
 - LiveActivity：btnFillLight 点击切换；rawListener 处理 code 11 回包刷新状态；
   Handler 实现 5 分钟自动关（onDestroy 清理回调）；开启时按钮琥珀色 #FFB300，关闭恢复主题色。
 - 竖屏通栏按钮、横屏与全屏/复位/追踪同行（四等分），两布局 id 一致。
-- **真机未验证**（需设备实际支持补光；协议与原版逐字节对齐，编译通过）。
+
+**真机验证中发现并修复的两个问题：**
+1. **进页面查询帧被静默丢弃，按钮永久停在"查询中…"**：LiveActivity 新建 WsClient 后
+   立即在 onCreate 发 led=3，此时 socket 未开；`sendRaw()` 未连接时只写 WS>> 日志并返回 false，
+   帧实际没发出，新 socket 上永远等不到回包。修复：`requestLedState()` 改走
+   `runWhenSubscribed {}` 门控（等 state-90 订阅 ack，最多等 3 秒）再发。
+2. **回包丢帧无兜底**：新增 `ledQueryTimeout`（8 秒），若按钮仍是"查询中"则按关态呈现；
+   手动切换检查 sendLed 返回值，socket 未开时 Toast 提示且不做乐观翻转；onDestroy 清理该回调。
+
+**真机验证结果（22:55-22:58，平板 Redmi Pad Pro）：**
+- 进页面 led=3 查询 → 服务端 ok 回包 data.led=1（设备灯当时确为开），按钮正确显示"开"。
+- 手动关：发 led=0 → 回 ok led=0 → 按钮"关"（主题色）；手动开：发 led=1 → ok led=1 →
+  按钮"开"（琥珀色）。指令/回包/UI 三者闭环，日志均有"补光灯状态回包"记录。
+- 横竖屏布局均验证：横屏紧凑两栏、竖屏四个分区标题（画面与声音/抓拍与录像/云台控制/语音对讲）
+  与补光灯按钮全部在视图树中（uiautomator dump 确认）。
 
 ### 3.5 页面优化（直播页，两布局同步）
 
@@ -131,8 +148,8 @@
 | `audio/AudioGain.kt` | 新增：软件 AGC（gateRms=120，增益 1~12，软限幅） |
 | `audio/MicSelfTest.kt` | 新增（临时诊断工具，**发布前移除广播注册**） |
 | `player/RtmpRecorder.kt` | 修 app/playName 切分；全链路日志；FLV 写入逻辑不变 |
-| `ws/WsClient.kt` | 清晰度常量交换；led 协议文档与 requestLedState |
-| `ui/LiveActivity.kt` | 补光灯、按钮视觉反馈、默认流畅、MicSelfTest 注册 |
+| `ws/WsClient.kt` | 清晰度常量交换；sendLed/requestLedState（查询走 runWhenSubscribed 门控） |
+| `ui/LiveActivity.kt` | 补光灯（回包/查询超时兜底/发送失败保护/5 分钟自动关）、按钮视觉反馈、默认流畅、MicSelfTest 注册 |
 | `res/layout(-land)/activity_live.xml` | 补光灯按钮、分区、文案精简、对讲主按钮样式 |
 
 ---
@@ -143,8 +160,8 @@
    AGC 后峰值 9000+；再请设备端（摄像头侧）确认能听到人声。这是唯一未闭环的高优项。
 2. **发布前移除 MicSelfTest**：LiveActivity 中 RECEIVER_EXPORTED 广播注册（adb 诊断用），
    正式版应删除注册与 import，MicSelfTest.kt 可保留或一并删除。
-3. **补光灯真机验证**：观察 code 11 回包 data.led 与灯的实际开关；若设备不支持会回错误帧，
-   注意 rawListener 只接受 0/1，其他值忽略不会误改 UI。
+3. **补光灯 5 分钟自动关未做长等实测**：逻辑与原版同参数（300000ms），代码路径已核验；
+   协议开关与回包已真机闭环（见 3.4）。后续可顺手观察一次自动关。
 4. **增强 FLV 兼容性**：录像视频 tag 为 0x1C 增强 FLV（摄像头推流即如此），旧播放器可能不认；
    新版 VLC/ffmpeg 5+ 支持。若用户反馈无法播放，再评估录制端转封装为标准 AVC/HEVC tag。
 5. v1.2.2 黑屏回归：本轮直播三画面渲染正常，未复现；保持观察。
@@ -174,6 +191,12 @@
 6. `TYPE_BUILTIN_BACK_MIC`(API31=27) 在 android-34 平台 jar 编译不可见，用字面量 27。
 7. PowerShell 5 不支持 `&&`、不能用 cmd /c、.ps1 可能被执行策略拦截，优先 .cmd。
 8. git 命令加 `--no-pager`；只在用户明确要求时提交/推送；不推 main。
+9. **本机直推 GitHub 会卡死**（git-remote-https 的 TCP 连接停在 Bound 无远端，10 分钟无数据）。
+   可行路径：`git bundle create` 打包分支 → scp 到新加坡服务器 → 服务器上 clone bundle 后
+   用 GIT_ASKPASS（token 运行时从服务器交接文档 grep，脚本用完即删）推 GitHub。
+   中转脚本模板在本机 `.toolchain/push-relay.sh`（仓库外，不含 token）。
+10. 平板切竖屏：`adb shell settings put system accelerometer_rotation 0; settings put system user_rotation 0`，
+    恢复自动旋转：`accelerometer_rotation 1`（`cmd window set-user-rotation` 在 HyperOS 3 不存在）。
 
 ---
 
@@ -182,4 +205,11 @@
 - 对讲两次 9~10 秒会话：volplay 回包、RTMP Publish.Start、423/476 音频帧、HAL 主麦路由，全部正常。
 - 录像 15 秒会话：StreamNotFound 修复后 594 媒体消息、1.15MB FLV、结构校验 0 错误。
 - 清晰度：108 组请求/分辨率配对统计，stream1=640x720（70 次）、stream0=1920x2160（8 次）。
-- 全部构建 BUILD SUCCESSFUL；最新 APK 安装于平板待用户人声与补光灯实测。
+- 补光灯（22:55-22:58）：led=3 查询回 ok led=1；手动 0/1 各一轮均回 ok 且按钮状态色正确翻转；
+  竖屏四分区标题、横屏紧凑布局经 uiautomator 全部确认。
+- 全部构建 BUILD SUCCESSFUL；最新 APK 已安装平板。**对讲人声端到端仍待用户配合（见待办 1）。**
+
+### 推送记录
+- 分支 `v1.2.4-led-recording-ui`，不推 main、不建 Release。
+- 本机直推 GitHub 卡死（见踩坑 9），改用 bundle + 新加坡服务器中转；服务器侧临时 askpass
+  脚本与 bundle 用完即删，token 未出现在任何提交/文档/本机磁盘中。

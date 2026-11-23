@@ -89,6 +89,16 @@ class LiveActivity : AppCompatActivity() {
             Toast.makeText(this, "补光灯已自动关闭", Toast.LENGTH_SHORT).show()
         }
     }
+    // Safety net: if the led=3 query reply never arrives (dropped frame,
+    // slow reconnect), don't leave the button forever on "查询中…".
+    private val ledQueryTimeout = Runnable {
+        val btn = findViewById<Button?>(R.id.btnFillLight)
+        if (btn != null && btn.text.toString().contains("查询中")) {
+            ledOn = false
+            updateLedButton()
+            DebugLog.log("UI", "补光灯状态查询超时，按钮按关态呈现")
+        }
+    }
 
     // PTZ (v1.2.1, root cause found in the original app's code):
     // the original re-sends the direction every 250 ms while held, and on
@@ -218,10 +228,14 @@ class LiveActivity : AppCompatActivity() {
                 if (t.startsWith("正在请求直播地址")) {
                     tvStatus.text = "正在请求直播地址…（已收到信令 $code）"
                 }
-                // Fill-light reply (code/state 11): data.led 0=off 1=on.
+                // Fill-light reply (code/state 11). The device echoes the
+                // request value: 1=on, 0=off, and the entry query led=3 is
+                // echoed back as 3 (not a real state). The original app does
+                // setSelected(led == 1), i.e. anything except 1 renders off.
                 if (code == 11) {
+                    ledHandler.removeCallbacks(ledQueryTimeout)
                     val v = obj.optJSONObject("data")?.optInt("led", -1) ?: -1
-                    if (v == 0 || v == 1) {
+                    if (v == 1 || v == 0) {
                         ledOn = v == 1
                         updateLedButton()
                         if (ledOn) {
@@ -230,8 +244,13 @@ class LiveActivity : AppCompatActivity() {
                         } else {
                             ledHandler.removeCallbacks(ledAutoOff)
                         }
-                        DebugLog.log("UI", "补光灯状态回包 led=$v")
+                    } else if (v == 3) {
+                        // Query echo: settle the button on the off appearance.
+                        ledOn = false
+                        updateLedButton()
+                        ledHandler.removeCallbacks(ledAutoOff)
                     }
+                    DebugLog.log("UI", "补光灯状态回包 led=$v -> ${if (ledOn) "开" else "关"}")
                 }
             }
         }
@@ -387,7 +406,11 @@ class LiveActivity : AppCompatActivity() {
             // Toggle like the original (VideoLiveClickControl): the reply
             // frame (code 11) is the source of truth and re-renders the button.
             val turnOn = !ledOn
-            ws.sendLed(sn, if (turnOn) 1 else 0)
+            if (!ws.sendLed(sn, if (turnOn) 1 else 0)) {
+                Toast.makeText(this, "信令未连接，操作失败", Toast.LENGTH_SHORT).show()
+                DebugLog.log("UI", "补光灯指令发送失败：socket 未开")
+                return@setOnClickListener
+            }
             ledOn = turnOn
             updateLedButton()
             if (turnOn) {
@@ -401,7 +424,10 @@ class LiveActivity : AppCompatActivity() {
         }
         refreshTrackState()
         // Query the current fill-light state (original sends led=3 on entry).
+        // The query is gated on the subscribe ack inside WsClient; give the
+        // round trip room (up to 3 s gate + network) before the safety net.
         ws.requestLedState(sn)
+        ledHandler.postDelayed(ledQueryTimeout, 8_000)
         // v1.2.1: fullscreen (button + single tap on the video).
         isFullscreen = savedInstanceState?.getBoolean("fullscreen") == true
         findViewById<Button>(R.id.btnFullscreen).setOnClickListener { toggleFullscreen() }
@@ -735,7 +761,10 @@ class LiveActivity : AppCompatActivity() {
             watchdogTask?.let { uiHandler.removeCallbacks(it) }
             player.onFirstFrame = null
         } catch (_: Exception) {}
-        try { ledHandler.removeCallbacks(ledAutoOff) } catch (_: Exception) {}
+        try {
+            ledHandler.removeCallbacks(ledAutoOff)
+            ledHandler.removeCallbacks(ledQueryTimeout)
+        } catch (_: Exception) {}
         try { ptzFuture?.cancel(true); ptzExecutor.shutdownNow() } catch (_: Exception) {}
         try { if (intercom.isTalking) intercom.stop() } catch (_: Exception) {}
         try { recorder?.release() } catch (_: Exception) {}
