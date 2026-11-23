@@ -21,12 +21,17 @@ import java.util.concurrent.TimeUnit
  * them to the developer's Altare server for diagnosis.
  *
  * Transport: the app POSTs JSON lines to the log receiver running on the
- * Altare sandbox (127.0.0.1:8899), exposed through a localhost.run tunnel.
- * The current tunnel URL is read at startup from
+ * Altare sandbox (127.0.0.1:8899), exposed through free tunnels. The
+ * current tunnel URLs are read at startup from
  * https://raw.githubusercontent.com/Aiyinsirui/xiaoguyun/main/debug-endpoint.txt
- * (tunnel URLs change when the tunnel restarts) and cached in prefs.
- * If the upload fails or no endpoint is known, lines stay in the local
- * file (external-files/debug.log) and can be copied from the UI.
+ * (one URL per line; tunnel URLs change when a tunnel restarts) and cached
+ * in prefs. Each flush tries the endpoints in order until one answers.
+ * If every upload fails, lines stay in the local file
+ * (external-files/debug.log) and can be copied from the UI.
+ * Tunnel history: Cloudflare's tunnel blocks non-browser traffic (403 for
+ * automated clients), localhost.run's free tunnel 502s after a few
+ * requests, bore's client dies after a while — hence the multi-endpoint
+ * retry. A stable fix would be an Altare public port (costs Bolts).
  *
  * Privacy: every line is sanitized before it is stored or sent —
  * accessToken / refreshToken / password / pwd values and Bearer tokens
@@ -44,16 +49,20 @@ object DebugLog {
     private const val FLUSH_INTERVAL_SEC = 20L
 
     private val http = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .writeTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
     private val lock = Any()
     private val buffer = ArrayDeque<String>()
     private var appContext: Context? = null
-    private var endpoint: String? = null
+    private var endpoints: List<String> = emptyList()
     private var started = false
+    // Serializes flushes: without this, the periodic flush and a manual
+    // flush can race — one takes the lines, the other finds an empty
+    // buffer and overwrites a real failure status with "无新日志".
+    private val uploading = java.util.concurrent.atomic.AtomicBoolean(false)
 
     /** Last upload outcome, for the UI status line. */
     @Volatile var lastStatus: String = "未上传"
@@ -68,23 +77,24 @@ object DebugLog {
             if (started) return
             started = true
             appContext = app
-            endpoint = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .getString(KEY_ENDPOINT, null)?.trim()?.takeIf {
-                    it.startsWith("https://") || it.startsWith("http://")
-                }
+            endpoints = parseEndpoints(
+                app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                    .getString(KEY_ENDPOINT, null),
+            )
         }
-        log("DEBUG", "DebugLog 已启动，上传地址：${endpoint ?: "（未配置）"}")
-        // Refresh the tunnel URL from the repo (it changes on tunnel restart).
+        log("DEBUG", "DebugLog 已启动，上传地址：${endpoints.ifEmpty { listOf("（未配置）") }}")
+        // Refresh the tunnel URLs from the repo (they change on tunnel restart).
         Executors.newSingleThreadExecutor().execute {
             try {
                 val req = Request.Builder().url(ENDPOINT_FILE_URL).build()
                 http.newCall(req).execute().use { resp ->
-                    val url = resp.body?.string()?.trim().orEmpty()
-                    if (resp.isSuccessful && (url.startsWith("https://") || url.startsWith("http://"))) {
-                        synchronized(lock) { endpoint = url }
+                    val raw = resp.body?.string().orEmpty()
+                    val urls = parseEndpoints(raw)
+                    if (resp.isSuccessful && urls.isNotEmpty()) {
+                        synchronized(lock) { endpoints = urls }
                         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                            .edit().putString(KEY_ENDPOINT, url).apply()
-                        log("DEBUG", "上传地址已更新")
+                            .edit().putString(KEY_ENDPOINT, raw).apply()
+                        log("DEBUG", "上传地址已更新：$urls")
                     }
                 }
             } catch (_: Exception) {
@@ -147,34 +157,52 @@ object DebugLog {
         return out
     }
 
+    private fun parseEndpoints(raw: String?): List<String> =
+        raw.orEmpty().lines().map { it.trim() }
+            .filter { it.startsWith("https://") || it.startsWith("http://") }
+            .distinct()
+
+    private fun hostOf(url: String): String = try {
+        java.net.URI(url).host ?: url
+    } catch (_: Exception) {
+        url
+    }
+
     private fun flush(): String {
-        val url = synchronized(lock) { endpoint } ?: run {
-            setStatus("未配置上传地址（等隧道地址更新）")
-            return lastStatus
-        }
-        val lines: List<String> = synchronized(lock) {
-            if (buffer.isEmpty()) return "无新日志"
-            buffer.toList().also { buffer.clear() }
-        }
-        return try {
+        if (!uploading.compareAndSet(false, true)) return "上传中…"
+        try {
+            val eps = synchronized(lock) { endpoints }
+            if (eps.isEmpty()) {
+                setStatus("未配置上传地址（等隧道地址更新）")
+                return lastStatus
+            }
+            val lines: List<String> = synchronized(lock) {
+                if (buffer.isEmpty()) return "无新日志"
+                buffer.toList().also { buffer.clear() }
+            }
             val body = JSONObject().apply {
                 put("lines", JSONArray(lines))
             }.toString().toRequestBody("application/json".toMediaType())
-            val req = Request.Builder().url("$url/log").post(body).build()
-            http.newCall(req).execute().use { resp ->
-                if (resp.isSuccessful) {
-                    setStatus("已上传 ${lines.size} 行 ${timeFmt.format(Date())}")
-                    lastStatus
-                } else {
-                    requeue(lines)
-                    setStatus("上传失败：HTTP ${resp.code}")
-                    lastStatus
+            val failures = mutableListOf<String>()
+            for (url in eps) {
+                try {
+                    val req = Request.Builder().url("$url/log").post(body).build()
+                    http.newCall(req).execute().use { resp ->
+                        if (resp.isSuccessful) {
+                            setStatus("已上传 ${lines.size} 行（${hostOf(url)}）")
+                            return lastStatus
+                        }
+                        failures += "${hostOf(url)} HTTP ${resp.code}"
+                    }
+                } catch (e: Exception) {
+                    failures += "${hostOf(url)} ${e.javaClass.simpleName}"
                 }
             }
-        } catch (e: Exception) {
             requeue(lines)
-            setStatus("上传失败：${e.message}")
-            lastStatus
+            setStatus("上传失败：" + failures.joinToString("；"))
+            return lastStatus
+        } finally {
+            uploading.set(false)
         }
     }
 

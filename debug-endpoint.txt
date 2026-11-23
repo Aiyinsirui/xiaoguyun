@@ -1,1 +1,2 @@
-http://bore.pub:11542
+https://stays-warrior-discover-trunk.trycloudflare.com
+http://bore.pub:25489

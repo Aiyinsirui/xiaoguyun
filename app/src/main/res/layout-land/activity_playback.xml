@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v1.2.0 landscape: video on the left, controls + record list on the right.
+     All view ids match the portrait layout. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="horizontal" android:padding="12dp">
+    <LinearLayout android:layout_width="0dp" android:layout_height="match_parent"
+        android:layout_weight="1" android:orientation="vertical">
+        <TextView android:id="@+id/tvTitle" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:textSize="18sp" android:textStyle="bold"
+            android:text="回放" />
+        <FrameLayout android:id="@+id/videoContainer" android:layout_width="match_parent"
+            android:layout_height="0dp" android:layout_weight="1"
+            android:layout_marginTop="8dp"
+            android:background="#000000" android:gravity="center" />
+        <TextView android:id="@+id/tvStatus" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="6dp"
+            android:text="@string/connecting" />
+        <SeekBar android:id="@+id/sbTimeline" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="6dp" android:max="86400" />
+        <TextView android:id="@+id/tvPosition" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="--:--:--" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="6dp">
+            <Button android:id="@+id/btnPause" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="暂停" />
+            <Button android:id="@+id/btnResume" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="继续" />
+            <Button android:id="@+id/btnBack10" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="-10 秒" />
+            <Button android:id="@+id/btnFwd10" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="+10 秒" />
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:layout_width="320dp" android:layout_height="match_parent"
+        android:layout_marginStart="12dp" android:orientation="vertical">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <Button android:id="@+id/btnCloud" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:text="云回放" />
+            <Button android:id="@+id/btnSd" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:text="SD 回放" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="8dp">
+            <Button android:id="@+id/btnPrevDay" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="‹ 前一天" />
+            <EditText android:id="@+id/etDate" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:hint="日期 yyyy-MM-dd" android:inputType="date" />
+            <Button android:id="@+id/btnNextDay" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="后一天 ›" />
+            <Button android:id="@+id/btnLoad" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="加载" />
+        </LinearLayout>
+        <TextView android:id="@+id/tvDates" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="4dp" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="8dp">
+            <Button android:id="@+id/btnDownload" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="下载本条" />
+            <Button android:id="@+id/btnDeleteLocal" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="删除本地文件" />
+        </LinearLayout>
+        <androidx.recyclerview.widget.RecyclerView android:id="@+id/rvRecords"
+            android:layout_width="match_parent" android:layout_height="0dp"
+            android:layout_weight="1" android:layout_marginTop="8dp" />
+    </LinearLayout>
+</LinearLayout>

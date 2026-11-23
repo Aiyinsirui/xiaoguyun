@@ -10,7 +10,8 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.SeekBar
-import android.view.TextureView
+import android.view.SurfaceView
+import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -90,7 +91,12 @@ class PlaybackActivity : AppCompatActivity() {
         sbTimeline = findViewById(R.id.sbTimeline)
         val etDate = findViewById<EditText>(R.id.etDate)
         etDate.setText(currentDate)
-        player = ExoRtmpPlayer(this, findViewById<TextureView>(R.id.surface))
+        // v1.2.0: SurfaceView created programmatically (see LiveActivity).
+        val videoContainer = findViewById<FrameLayout>(R.id.videoContainer)
+        val surfaceView = SurfaceView(this)
+        videoContainer.addView(surfaceView, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        player = ExoRtmpPlayer(this, surfaceView, videoContainer)
         val store = TokenStore(this)
         api = ApiClient(store)
         ws = WsClient(store)

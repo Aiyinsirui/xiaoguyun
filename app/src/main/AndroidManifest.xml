@@ -23,7 +23,7 @@
         </activity>
         <activity android:name=".ui.DeviceListActivity" android:exported="false" />
         <activity android:name=".ui.LiveActivity" android:exported="false"
-            android:configChanges="orientation|screenSize|keyboardHidden" />
+            android:configChanges="keyboardHidden" />
         <activity android:name=".ui.PlaybackActivity" android:exported="false" />
         <activity android:name=".ui.DeviceDetailActivity" android:exported="false" />
         <activity android:name=".ui.SdCardActivity" android:exported="false" />

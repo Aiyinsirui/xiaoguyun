@@ -10,7 +10,8 @@ import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
 import android.view.MotionEvent
-import android.view.TextureView
+import android.view.SurfaceView
+import android.widget.FrameLayout
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -60,7 +61,14 @@ class LiveActivity : AppCompatActivity() {
         DebugLog.log("UI", "打开直播页 sn=$sn name=$name netType=$netType")
         findViewById<TextView>(R.id.tvTitle).text = name
         tvStatus = findViewById(R.id.tvLiveStatus)
-        player = ExoRtmpPlayer(this, findViewById<TextureView>(R.id.surface))
+        // v1.2.0: SurfaceView created programmatically into videoContainer.
+        // TextureView with android:background crashes this device's
+        // constructor (UnsupportedOperationException, 2026-11-23).
+        val videoContainer = findViewById<FrameLayout>(R.id.videoContainer)
+        val surfaceView = SurfaceView(this)
+        videoContainer.addView(surfaceView, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        player = ExoRtmpPlayer(this, surfaceView, videoContainer)
         // v1.1.6: the player is ExoPlayer + FlvEnhancedExtractor now; if it
         // still errors on this stream, the sub-stream is often a different
         // codec, so on the first playback error automatically retry with

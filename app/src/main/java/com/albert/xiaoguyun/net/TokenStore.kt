@@ -7,9 +7,12 @@ import androidx.security.crypto.MasterKey
 import java.util.UUID
 
 /**
- * Only tokens are persisted, never the password. The password lives only
- * in memory during the login call. Logout clears tokens locally; there is
- * no server-side logout/revoke endpoint in the original app.
+ * Tokens are persisted encrypted; the password is NOT saved by default.
+ * The user explicitly asked (2026-11-23) to remember the account + password
+ * so he does not have to re-type them after logout: when "记住密码" is
+ * checked at login, the phone + password are saved in the same encrypted
+ * prefs (saved_phone / saved_password). Logout clears tokens only, never
+ * these — the login screen pre-fills them instead.
  */
 class TokenStore(context: Context) {
     private val prefs: SharedPreferences = try {
@@ -62,5 +65,20 @@ class TokenStore(context: Context) {
     fun clear() {
         prefs.edit().remove("token").remove("refresh_token")
             .remove("user_id").remove("token_saved_at").apply()
+    }
+
+    /** Remembered login credentials (see class doc). Encrypted prefs. */
+    var savedPhone: String?
+        get() = prefs.getString("saved_phone", null)
+        set(v) = prefs.edit().putString("saved_phone", v).apply()
+    var savedPassword: String?
+        get() = prefs.getString("saved_password", null)
+        set(v) = prefs.edit().putString("saved_password", v).apply()
+    fun saveCredentials(phone: String, password: String) {
+        savedPhone = phone
+        savedPassword = password
+    }
+    fun clearCredentials() {
+        prefs.edit().remove("saved_phone").remove("saved_password").apply()
     }
 }

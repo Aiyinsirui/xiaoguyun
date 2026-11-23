@@ -30,6 +30,12 @@ class LoginActivity : AppCompatActivity() {
         setContentView(R.layout.activity_login)
         val etPhone = findViewById<EditText>(R.id.etPhone)
         val etPassword = findViewById<EditText>(R.id.etPassword)
+        val cbRemember = findViewById<CheckBox>(R.id.cbRemember)
+        // v1.2.0: remember account + password — pre-fill from encrypted prefs.
+        store.savedPhone?.let { if (it.isNotBlank()) etPhone.setText(it) }
+        store.savedPassword?.let {
+            if (it.isNotBlank()) { etPassword.setText(it); cbRemember.isChecked = true }
+        }
         val etCode = findViewById<EditText>(R.id.etCode)
         val smsRow = findViewById<LinearLayout>(R.id.smsRow)
         val btnLogin = findViewById<Button>(R.id.btnLogin)
@@ -108,12 +114,16 @@ class LoginActivity : AppCompatActivity() {
                         if (pwd.length < 8) { err("新密码至少 8 位"); return@launch }
                         api.forgotPassword(phone, code, pwd)
                         api.login(phone, pwd)
+                        if (cbRemember.isChecked) store.saveCredentials(phone, pwd)
+                        else store.clearCredentials()
                         goDevices()
                         return@launch
                     }
                     val pwd = etPassword.text.toString()
                     if (pwd.length < 8) { err("密码至少 8 位"); return@launch }
                     api.login(phone, pwd)
+                    if (cbRemember.isChecked) store.saveCredentials(phone, pwd)
+                    else store.clearCredentials()
                     goDevices()
                 } catch (e: Exception) {
                     err((e as? ApiException)?.message ?: e.message ?: "登录失败")

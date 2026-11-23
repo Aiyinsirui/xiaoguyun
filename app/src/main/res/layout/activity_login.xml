@@ -23,6 +23,9 @@
         <EditText android:id="@+id/etPassword" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="12dp"
             android:hint="@string/password" android:inputType="textPassword" />
+        <CheckBox android:id="@+id/cbRemember" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:layout_marginTop="8dp"
+            android:checked="true" android:text="记住账号密码，下次自动填好" />
         <LinearLayout android:id="@+id/smsRow" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:orientation="horizontal"
             android:visibility="gone" android:layout_marginTop="12dp">
@@ -46,6 +49,6 @@
             android:textColor="#C62828" />
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:text="说明：密码只在登录那一刻进内存，不会本地保存；token 加密存储。短信验证在原 App 中只用于注册/找回，不会直接登录——验证通过后仍需密码登录。" />
+            android:text="说明：勾选“记住账号密码”后，手机号和密码会加密存在本机，下次打开自动填好（退出登录也不会清除）；不勾选则不保存。短信验证在原 App 中只用于注册/找回，不会直接登录——验证通过后仍需密码登录。" />
     </LinearLayout>
 </ScrollView>
