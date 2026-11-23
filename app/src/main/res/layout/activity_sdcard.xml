@@ -1,22 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- v1.2.5：内存卡页换肤，id 不动。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical" android:padding="16dp">
+    android:background="@color/bg_page"
+    android:orientation="vertical" android:padding="24dp">
     <TextView android:id="@+id/tvTitle" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:textSize="20sp" android:textStyle="bold"
-        android:text="内存卡" />
+        android:layout_height="wrap_content" android:textSize="18sp" android:textStyle="bold"
+        android:textColor="@color/text_primary" android:text="内存卡" />
     <TextView android:id="@+id/tvInfo" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:layout_marginTop="12dp" />
+        android:layout_height="wrap_content" android:layout_marginTop="12dp"
+        android:background="@drawable/bg_card_small" android:padding="16dp"
+        android:textSize="14sp" android:textColor="@color/text_primary" />
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:layout_marginTop="16dp">
         <Button android:id="@+id/btnRefreshTf" android:layout_width="0dp"
-            android:layout_height="wrap_content" android:layout_weight="1" android:text="刷新" />
+            android:layout_height="48dp" android:layout_weight="1" android:layout_margin="4dp"
+            android:background="@drawable/bg_btn_white_capsule"
+            android:minWidth="0dp" android:minHeight="0dp"
+            android:text="刷新" android:textSize="14sp"
+            android:textAllCaps="false" android:textColor="@color/text_primary" />
         <Button android:id="@+id/btnFormatTf" android:layout_width="0dp"
-            android:layout_height="wrap_content" android:layout_weight="1" android:text="格式化" />
+            android:layout_height="48dp" android:layout_weight="1" android:layout_margin="4dp"
+            android:background="@drawable/bg_btn_white_capsule"
+            android:minWidth="0dp" android:minHeight="0dp"
+            android:text="格式化" android:textSize="14sp"
+            android:textAllCaps="false" android:textColor="@color/text_primary" />
         <Button android:id="@+id/btnSdPlayback" android:layout_width="0dp"
-            android:layout_height="wrap_content" android:layout_weight="1" android:text="SD 回放" />
+            android:layout_height="48dp" android:layout_weight="1" android:layout_margin="4dp"
+            android:background="@drawable/bg_btn_white_capsule"
+            android:minWidth="0dp" android:minHeight="0dp"
+            android:text="SD 回放" android:textSize="14sp"
+            android:textAllCaps="false" android:textColor="@color/text_primary" />
     </LinearLayout>
     <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="16dp" android:textSize="12sp"
+        android:textColor="@color/text_secondary"
         android:text="说明：内存卡信息走 WS code 13（已用百分比），格式化走 code 12；总容量/剩余容量字段静态未确认。SD 回放走 code 23 列表 + code 24 取流。" />
 </LinearLayout>

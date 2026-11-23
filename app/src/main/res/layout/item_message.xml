@@ -1,13 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- v1.2.5：消息列表项（左侧事件缩略图 + 标题/内容/时间 + 未读红点）。缩略图是报警抓拍，
+     加载失败时保留占位底色，不阻塞列表。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="wrap_content"
-    android:orientation="vertical" android:padding="14dp">
-    <TextView android:id="@+id/tvMsgTitle" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:textSize="16sp" android:textStyle="bold" />
-    <TextView android:id="@+id/tvMsgBody" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:layout_marginTop="4dp" />
-    <TextView android:id="@+id/tvMsgTime" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:layout_marginTop="4dp" />
-    <Button android:id="@+id/btnMsgDelete" android:layout_width="wrap_content"
-        android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="删除" />
+    android:orientation="horizontal" android:padding="12dp"
+    android:layout_marginBottom="8dp"
+    android:background="@drawable/bg_card_small" android:elevation="1dp"
+    android:gravity="center_vertical">
+    <ImageView android:id="@+id/ivMsgThumb" android:layout_width="56dp" android:layout_height="56dp"
+        android:background="@drawable/bg_thumb_placeholder" android:scaleType="centerCrop" />
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+        android:layout_weight="1" android:layout_marginStart="12dp" android:orientation="vertical">
+        <TextView android:id="@+id/tvMsgTitle" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:textSize="16sp" android:textStyle="bold"
+            android:textColor="@color/text_primary" />
+        <TextView android:id="@+id/tvMsgBody" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="4dp"
+            android:maxLines="2" android:ellipsize="end"
+            android:textSize="14sp" android:textColor="@color/text_secondary" />
+        <TextView android:id="@+id/tvMsgTime" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="4dp"
+            android:textSize="12sp" android:textColor="@color/text_tertiary" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_marginStart="8dp" android:orientation="vertical"
+        android:gravity="center_horizontal">
+        <View android:id="@+id/vUnreadDot" android:layout_width="8dp" android:layout_height="8dp"
+            android:background="@drawable/bg_dot_red" android:visibility="gone" />
+        <Button android:id="@+id/btnMsgDelete" android:layout_width="wrap_content"
+            android:layout_height="32dp" android:layout_marginTop="8dp"
+            android:background="@drawable/bg_btn_white_capsule"
+            android:minWidth="0dp" android:minHeight="0dp" android:paddingStart="12dp"
+            android:paddingEnd="12dp" android:text="删除" android:textSize="12sp"
+            android:textAllCaps="false" android:textColor="@color/text_primary" />
+    </LinearLayout>
 </LinearLayout>

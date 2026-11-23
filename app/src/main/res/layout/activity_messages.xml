@@ -1,21 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- v1.2.5：消息页换肤（独立页面，从设备详情进入时用），id 不动。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical" android:padding="16dp">
+    android:background="@color/bg_page"
+    android:orientation="vertical" android:padding="24dp">
     <TextView android:id="@+id/tvTitle" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:textSize="20sp" android:textStyle="bold"
-        android:text="消息" />
+        android:layout_height="wrap_content" android:textSize="18sp" android:textStyle="bold"
+        android:textColor="@color/text_primary" android:text="消息" />
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:layout_marginTop="12dp">
-        <EditText android:id="@+id/etDate" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:hint="日期 yyyy-MM-dd" android:inputType="date" />
+        <EditText android:id="@+id/etDate" android:layout_width="0dp"
+            android:layout_height="48dp" android:layout_weight="1"
+            android:background="@drawable/bg_input" android:paddingStart="16dp" android:paddingEnd="16dp"
+            android:hint="日期 yyyy-MM-dd" android:inputType="date"
+            android:textSize="16sp" android:textColor="@color/text_primary" />
         <Button android:id="@+id/btnLoad" android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:text="加载" />
+            android:layout_height="48dp" android:layout_marginStart="8dp"
+            android:background="@drawable/bg_btn_primary_capsule"
+            android:minWidth="0dp" android:minHeight="0dp"
+            android:text="加载" android:textSize="14sp"
+            android:textAllCaps="false" android:textColor="@color/white" />
     </LinearLayout>
     <TextView android:id="@+id/tvStatus" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:layout_marginTop="8dp"
-        android:text="@string/connecting" />
+        android:text="@string/connecting" android:textSize="14sp"
+        android:textColor="@color/text_secondary" />
     <androidx.recyclerview.widget.RecyclerView android:id="@+id/rvMessages"
         android:layout_width="match_parent" android:layout_height="0dp"
-        android:layout_weight="1" android:layout_marginTop="8dp" />
+        android:layout_weight="1" android:layout_marginTop="12dp"
+        android:clipToPadding="false" android:paddingTop="2dp" android:paddingBottom="2dp" />
 </LinearLayout>

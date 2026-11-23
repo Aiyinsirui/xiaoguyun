@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v1.2.5 UI 现代化：hyper-neumorphic 浅色令牌（背景 #F2F4F8，白卡片，主色 #007AFF）。 -->
+<resources>
+    <color name="bg_page">#F2F4F8</color>
+    <color name="card">#FFFFFF</color>
+    <color name="text_primary">#111111</color>
+    <color name="text_secondary">#6F7280</color>
+    <color name="text_tertiary">#B5B5C0</color>
+    <color name="primary">#007AFF</color>
+    <color name="primary_dark">#0062CC</color>
+    <color name="success">#32BB78</color>
+    <color name="warning">#FFB300</color>
+    <color name="error">#FF5252</color>
+    <color name="border">#E5E5E5</color>
+    <color name="divider">#F0F0F0</color>
+    <color name="icon_bg">#F2F4F8</color>
+    <color name="badge_bg">#E8F4FF</color>
+    <color name="badge_online_bg">#E6F7EE</color>
+    <color name="video_black">#000000</color>
+    <color name="white">#FFFFFF</color>
+    <color name="chip_bg">#F2F4F8</color>
+</resources>

@@ -6,4 +6,10 @@
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">bore.pub</domain>
     </domain-config>
+    <!-- v1.2.5: alarm thumbnails are plain HTTP from the vendor's image
+         host (http://pic.dagucloud.com:7736 + pic). Images only; everything
+         else stays HTTPS-only (usesCleartextTraffic=false in the manifest). -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">pic.dagucloud.com</domain>
+    </domain-config>
 </network-security-config>

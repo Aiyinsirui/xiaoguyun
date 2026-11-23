@@ -1,19 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- v1.2.5：摄像头卡片（白底 28dp 圆角 + 轻阴影）。双通道预览为占位缩略图
+     （不另外拉流：v1.2.3 已证明多路 RTMP 并发会拖垮中转导致黑屏），点卡片进直播页看实况。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="wrap_content"
-    android:orientation="vertical" android:padding="14dp"
-    android:background="?attr/selectableItemBackground">
-    <TextView android:id="@+id/tvName" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:textSize="18sp" android:textStyle="bold" />
-    <TextView android:id="@+id/tvSn" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:layout_marginTop="4dp" />
+    android:orientation="vertical" android:padding="16dp"
+    android:layout_marginBottom="12dp"
+    android:background="@drawable/bg_card" android:elevation="2dp">
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="horizontal" android:layout_marginTop="4dp">
+        android:orientation="horizontal" android:gravity="center_vertical">
+        <TextView android:id="@+id/tvName" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:textSize="18sp" android:textStyle="bold"
+            android:textColor="@color/text_primary" />
         <TextView android:id="@+id/tvStatus" android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content" android:background="@drawable/bg_badge_online"
+            android:paddingStart="10dp" android:paddingEnd="10dp"
+            android:paddingTop="4dp" android:paddingBottom="4dp"
+            android:textSize="12sp" android:textStyle="bold" android:textColor="@color/success" />
+        <TextView android:id="@+id/tvShareBadge" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:layout_marginStart="6dp"
+            android:background="@drawable/bg_badge_share"
+            android:paddingStart="10dp" android:paddingEnd="10dp"
+            android:paddingTop="4dp" android:paddingBottom="4dp"
+            android:text="分享中" android:textSize="12sp" android:textStyle="bold"
+            android:textColor="@color/primary" android:visibility="gone" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:layout_marginTop="12dp">
+        <FrameLayout android:layout_width="0dp" android:layout_height="96dp"
+            android:layout_weight="1" android:layout_marginEnd="6dp"
+            android:background="@drawable/bg_preview">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_gravity="bottom|start" android:padding="8dp"
+                android:text="通道1 · 全景相机" android:textColor="@color/white" android:textSize="12sp" />
+        </FrameLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_height="96dp"
+            android:layout_weight="1" android:layout_marginStart="6dp"
+            android:background="@drawable/bg_preview">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_gravity="bottom|start" android:padding="8dp"
+                android:text="通道2 · 特写相机" android:textColor="@color/white" android:textSize="12sp" />
+        </FrameLayout>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:layout_marginTop="12dp"
+        android:gravity="center_vertical">
+        <TextView android:id="@+id/tvSn" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:textSize="12sp" android:textColor="@color/text_tertiary" />
         <TextView android:id="@+id/tvBattery" android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:layout_marginStart="16dp" />
+            android:layout_height="wrap_content" android:textSize="12sp"
+            android:textColor="@color/text_secondary" />
         <Button android:id="@+id/btnDetail" android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:text="详情" />
+            android:layout_height="36dp" android:layout_marginStart="12dp"
+            android:background="@drawable/bg_btn_white_capsule"
+            android:minWidth="0dp" android:minHeight="0dp" android:paddingStart="16dp"
+            android:paddingEnd="16dp" android:text="详情" android:textSize="14sp"
+            android:textAllCaps="false" android:textColor="@color/text_primary" />
     </LinearLayout>
 </LinearLayout>

@@ -1,54 +1,74 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- v1.2.5：登录页换肤，id 与逻辑不动。 -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:padding="24dp">
+    android:background="@color/bg_page" android:padding="24dp">
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="vertical">
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="@string/login_title" android:textSize="26sp" android:textStyle="bold" />
+            android:text="@string/login_title" android:textSize="26sp" android:textStyle="bold"
+            android:textColor="@color/text_primary" />
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="6dp" android:text="@string/login_hint" />
+            android:layout_marginTop="6dp" android:text="@string/login_hint"
+            android:textSize="14sp" android:textColor="@color/text_secondary" />
         <RadioGroup android:id="@+id/tabGroup" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:orientation="horizontal"
             android:layout_marginTop="20dp">
             <RadioButton android:id="@+id/tabPassword" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:checked="true"
-                android:text="@string/tab_password" />
+                android:text="@string/tab_password" android:textColor="@color/text_primary" />
             <RadioButton android:id="@+id/tabSms" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:text="@string/tab_sms" />
+                android:layout_height="wrap_content" android:text="@string/tab_sms"
+                android:textColor="@color/text_primary" />
         </RadioGroup>
         <EditText android:id="@+id/etPhone" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="12dp"
-            android:hint="@string/phone" android:inputType="phone" android:maxLength="11" />
+            android:layout_height="48dp" android:layout_marginTop="12dp"
+            android:background="@drawable/bg_input" android:paddingStart="16dp" android:paddingEnd="16dp"
+            android:hint="@string/phone" android:inputType="phone" android:maxLength="11"
+            android:textSize="16sp" android:textColor="@color/text_primary" />
         <EditText android:id="@+id/etPassword" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="12dp"
-            android:hint="@string/password" android:inputType="textPassword" />
+            android:layout_height="48dp" android:layout_marginTop="12dp"
+            android:background="@drawable/bg_input" android:paddingStart="16dp" android:paddingEnd="16dp"
+            android:hint="@string/password" android:inputType="textPassword"
+            android:textSize="16sp" android:textColor="@color/text_primary" />
         <CheckBox android:id="@+id/cbRemember" android:layout_width="wrap_content"
             android:layout_height="wrap_content" android:layout_marginTop="8dp"
-            android:checked="true" android:text="记住账号密码，下次自动填好" />
+            android:checked="true" android:text="记住账号密码，下次自动填好"
+            android:textColor="@color/text_secondary" />
         <LinearLayout android:id="@+id/smsRow" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:orientation="horizontal"
             android:visibility="gone" android:layout_marginTop="12dp">
             <EditText android:id="@+id/etCode" android:layout_width="0dp"
-                android:layout_height="wrap_content" android:layout_weight="1"
-                android:hint="@string/sms_code" android:inputType="number" android:maxLength="6" />
+                android:layout_height="48dp" android:layout_weight="1"
+                android:background="@drawable/bg_input" android:paddingStart="16dp" android:paddingEnd="16dp"
+                android:hint="@string/sms_code" android:inputType="number" android:maxLength="6"
+                android:textSize="16sp" android:textColor="@color/text_primary" />
             <Button android:id="@+id/btnSendCode" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:text="@string/send_code" />
+                android:layout_height="48dp" android:layout_marginStart="8dp"
+                android:background="@drawable/bg_btn_white_capsule"
+                android:minWidth="0dp" android:minHeight="0dp"
+                android:text="@string/send_code" android:textSize="14sp"
+                android:textAllCaps="false" android:textColor="@color/text_primary" />
         </LinearLayout>
         <Button android:id="@+id/btnLogin" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="20dp"
-            android:text="@string/login_password" />
+            android:layout_height="48dp" android:layout_marginTop="20dp"
+            android:background="@drawable/bg_btn_primary"
+            android:text="@string/login_password" android:textSize="16sp" android:textStyle="bold"
+            android:textAllCaps="false" android:textColor="@color/white" />
         <Button android:id="@+id/btnForgot" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:layout_marginTop="8dp"
-            android:text="忘记密码" />
+            android:layout_height="48dp" android:layout_marginTop="8dp"
+            android:background="@drawable/bg_btn_white"
+            android:text="忘记密码" android:textSize="14sp"
+            android:textAllCaps="false" android:textColor="@color/text_primary" />
         <ProgressBar android:id="@+id/progress" android:layout_width="wrap_content"
             android:layout_height="wrap_content" android:layout_gravity="center"
             android:layout_marginTop="16dp" android:visibility="gone" />
         <TextView android:id="@+id/tvError" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="12dp"
-            android:textColor="#C62828" />
+            android:textColor="@color/error" />
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="20dp" android:textSize="12sp"
+            android:textColor="@color/text_secondary"
             android:text="说明：勾选“记住账号密码”后，手机号和密码会加密存在本机，下次打开自动填好（退出登录也不会清除）；不勾选则不保存。短信验证在原 App 中只用于注册/找回，不会直接登录——验证通过后仍需密码登录。" />
     </LinearLayout>
 </ScrollView>

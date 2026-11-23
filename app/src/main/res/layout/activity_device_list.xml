@@ -1,50 +1,407 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- v1.2.5 UI 现代化：底部导航壳（首页 / 消息 / 功能 / 我的），DeviceListActivity 仍是入口，
+     登录流程不变。首页只看设备卡片，控制都在直播详情页。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical" android:padding="16dp">
+    android:background="@color/bg_page"
+    android:orientation="vertical">
+    <FrameLayout android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1">
+        <!-- ============ 首页：设备 ============ -->
+        <LinearLayout android:id="@+id/homeContainer"
+            android:layout_width="match_parent" android:layout_height="match_parent"
+            android:orientation="vertical" android:padding="24dp">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/device_list" android:textSize="18sp" android:textStyle="bold"
+                android:textColor="@color/text_primary" />
+            <TextView android:id="@+id/tvStatus" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="4dp"
+                android:text="@string/connecting" android:textSize="14sp"
+                android:textColor="@color/text_secondary" />
+            <TextView android:id="@+id/tvCrash" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="12dp"
+                android:background="#FFF3E0" android:padding="8dp" android:textSize="12sp"
+                android:typeface="monospace" android:textIsSelectable="true"
+                android:visibility="gone" />
+            <Button android:id="@+id/btnCopyCrash" android:layout_width="match_parent"
+                android:layout_height="48dp" android:layout_marginTop="4dp"
+                android:background="@drawable/bg_btn_white" android:textColor="@color/text_primary"
+                android:textSize="14sp" android:textAllCaps="false"
+                android:text="复制崩溃日志（粘贴发给开发者）" android:visibility="gone" />
+            <Button android:id="@+id/btnClearCrash" android:layout_width="match_parent"
+                android:layout_height="48dp" android:layout_marginTop="4dp"
+                android:background="@drawable/bg_btn_white" android:textColor="@color/text_primary"
+                android:textSize="14sp" android:textAllCaps="false"
+                android:text="清除这条崩溃日志" android:visibility="gone" />
+            <androidx.recyclerview.widget.RecyclerView android:id="@+id/rvDevices"
+                android:layout_width="match_parent" android:layout_height="0dp"
+                android:layout_weight="1" android:layout_marginTop="12dp"
+                android:clipToPadding="false" android:paddingTop="2dp" android:paddingBottom="2dp" />
+            <TextView android:id="@+id/tvEmpty" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:gravity="center"
+                android:text="@string/empty_devices" android:visibility="gone" />
+            <Button android:id="@+id/btnRetry" android:layout_width="match_parent"
+                android:layout_height="48dp" android:background="@drawable/bg_btn_primary"
+                android:textColor="@color/white" android:textSize="16sp" android:textAllCaps="false"
+                android:text="@string/retry" android:visibility="gone" />
+        </LinearLayout>
+        <!-- ============ 消息：报警/事件 ============ -->
+        <LinearLayout android:id="@+id/messagesContainer"
+            android:layout_width="match_parent" android:layout_height="match_parent"
+            android:orientation="vertical" android:padding="24dp" android:visibility="gone">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/messages_title" android:textSize="18sp" android:textStyle="bold"
+                android:textColor="@color/text_primary" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:layout_marginTop="12dp">
+                <EditText android:id="@+id/etMsgDate" android:layout_width="0dp"
+                    android:layout_height="48dp" android:layout_weight="1"
+                    android:background="@drawable/bg_input" android:paddingStart="16dp"
+                    android:paddingEnd="16dp" android:hint="日期 yyyy-MM-dd"
+                    android:inputType="date" android:textSize="16sp" />
+                <Button android:id="@+id/btnMsgLoad" android:layout_width="wrap_content"
+                    android:layout_height="48dp" android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_btn_primary_capsule"
+                    android:textColor="@color/white" android:textSize="14sp"
+                    android:textAllCaps="false" android:paddingStart="20dp" android:paddingEnd="20dp"
+                    android:text="加载" />
+            </LinearLayout>
+            <TextView android:id="@+id/tvMsgStatus" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="8dp"
+                android:text="@string/connecting" android:textSize="14sp"
+                android:textColor="@color/text_secondary" />
+            <androidx.recyclerview.widget.RecyclerView android:id="@+id/rvMessages"
+                android:layout_width="match_parent" android:layout_height="0dp"
+                android:layout_weight="1" android:layout_marginTop="12dp"
+                android:clipToPadding="false" android:paddingTop="2dp" android:paddingBottom="2dp" />
+        </LinearLayout>
+        <!-- ============ 功能：工具中心 ============ -->
+        <ScrollView android:id="@+id/toolsContainer"
+            android:layout_width="match_parent" android:layout_height="match_parent"
+            android:visibility="gone">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="24dp">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="@string/tools_title" android:textSize="18sp" android:textStyle="bold"
+                    android:textColor="@color/text_primary" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp" android:text="设备工具"
+                    android:textColor="@color/text_secondary" android:textSize="13sp" android:textStyle="bold" />
+                <GridLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:columnCount="2" android:layout_marginTop="6dp">
+                    <LinearLayout android:id="@+id/toolPlayback"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_columnWeight="1" android:layout_gravity="fill_horizontal"
+                        android:layout_margin="6dp" android:background="@drawable/bg_card"
+                        android:elevation="2dp" android:orientation="vertical"
+                        android:padding="16dp" android:gravity="center_horizontal">
+                        <TextView android:layout_width="48dp" android:layout_height="48dp"
+                            android:background="@drawable/bg_tool_icon" android:gravity="center"
+                            android:text="播" android:textColor="@color/primary"
+                            android:textSize="18sp" android:textStyle="bold" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp" android:text="@string/tool_playback"
+                            android:textSize="16sp" android:textStyle="bold"
+                            android:textColor="@color/text_primary" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp" android:text="云回放 / SD 回放"
+                            android:textSize="12sp" android:textColor="@color/text_tertiary" />
+                    </LinearLayout>
+                    <LinearLayout android:id="@+id/toolSdCard"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_columnWeight="1" android:layout_gravity="fill_horizontal"
+                        android:layout_margin="6dp" android:background="@drawable/bg_card"
+                        android:elevation="2dp" android:orientation="vertical"
+                        android:padding="16dp" android:gravity="center_horizontal">
+                        <TextView android:layout_width="48dp" android:layout_height="48dp"
+                            android:background="@drawable/bg_tool_icon" android:gravity="center"
+                            android:text="卡" android:textColor="@color/primary"
+                            android:textSize="18sp" android:textStyle="bold" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp" android:text="@string/tool_sdcard"
+                            android:textSize="16sp" android:textStyle="bold"
+                            android:textColor="@color/text_primary" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp" android:text="容量与格式化"
+                            android:textSize="12sp" android:textColor="@color/text_tertiary" />
+                    </LinearLayout>
+                    <LinearLayout android:id="@+id/toolAlbum"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_columnWeight="1" android:layout_gravity="fill_horizontal"
+                        android:layout_margin="6dp" android:background="@drawable/bg_card"
+                        android:elevation="2dp" android:orientation="vertical"
+                        android:padding="16dp" android:gravity="center_horizontal">
+                        <TextView android:layout_width="48dp" android:layout_height="48dp"
+                            android:background="@drawable/bg_tool_icon" android:gravity="center"
+                            android:text="册" android:textColor="@color/primary"
+                            android:textSize="18sp" android:textStyle="bold" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp" android:text="@string/tool_album"
+                            android:textSize="16sp" android:textStyle="bold"
+                            android:textColor="@color/text_primary" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp" android:text="抓拍与录像文件"
+                            android:textSize="12sp" android:textColor="@color/text_tertiary" />
+                    </LinearLayout>
+                    <LinearLayout android:id="@+id/toolShare"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_columnWeight="1" android:layout_gravity="fill_horizontal"
+                        android:layout_margin="6dp" android:background="@drawable/bg_card"
+                        android:elevation="2dp" android:orientation="vertical"
+                        android:padding="16dp" android:gravity="center_horizontal">
+                        <TextView android:layout_width="48dp" android:layout_height="48dp"
+                            android:background="@drawable/bg_tool_icon" android:gravity="center"
+                            android:text="享" android:textColor="@color/primary"
+                            android:textSize="18sp" android:textStyle="bold" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp" android:text="@string/tool_share"
+                            android:textSize="16sp" android:textStyle="bold"
+                            android:textColor="@color/text_primary" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp" android:text="分享设备给家人"
+                            android:textSize="12sp" android:textColor="@color/text_tertiary" />
+                    </LinearLayout>
+                    <LinearLayout android:id="@+id/toolDetail"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_columnWeight="1" android:layout_gravity="fill_horizontal"
+                        android:layout_margin="6dp" android:background="@drawable/bg_card"
+                        android:elevation="2dp" android:orientation="vertical"
+                        android:padding="16dp" android:gravity="center_horizontal">
+                        <TextView android:layout_width="48dp" android:layout_height="48dp"
+                            android:background="@drawable/bg_tool_icon" android:gravity="center"
+                            android:text="设" android:textColor="@color/primary"
+                            android:textSize="18sp" android:textStyle="bold" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp" android:text="@string/tool_detail"
+                            android:textSize="16sp" android:textStyle="bold"
+                            android:textColor="@color/text_primary" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp" android:text="信息与设置"
+                            android:textSize="12sp" android:textColor="@color/text_tertiary" />
+                    </LinearLayout>
+                    <LinearLayout android:id="@+id/toolMessages"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_columnWeight="1" android:layout_gravity="fill_horizontal"
+                        android:layout_margin="6dp" android:background="@drawable/bg_card"
+                        android:elevation="2dp" android:orientation="vertical"
+                        android:padding="16dp" android:gravity="center_horizontal">
+                        <TextView android:layout_width="48dp" android:layout_height="48dp"
+                            android:background="@drawable/bg_tool_icon" android:gravity="center"
+                            android:text="讯" android:textColor="@color/primary"
+                            android:textSize="18sp" android:textStyle="bold" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp" android:text="@string/tool_messages"
+                            android:textSize="16sp" android:textStyle="bold"
+                            android:textColor="@color/text_primary" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp" android:text="侦测事件列表"
+                            android:textSize="12sp" android:textColor="@color/text_tertiary" />
+                    </LinearLayout>
+                </GridLayout>
+            </LinearLayout>
+        </ScrollView>
+        <!-- ============ 我的：账号与设置 ============ -->
+        <ScrollView android:id="@+id/myContainer"
+            android:layout_width="match_parent" android:layout_height="match_parent"
+            android:visibility="gone">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="24dp">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="@string/mine_title" android:textSize="18sp" android:textStyle="bold"
+                    android:textColor="@color/text_primary" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp" android:background="@drawable/bg_card"
+                    android:elevation="2dp" android:orientation="horizontal"
+                    android:padding="16dp" android:gravity="center_vertical">
+                    <TextView android:layout_width="56dp" android:layout_height="56dp"
+                        android:background="@drawable/bg_circle_primary" android:gravity="center"
+                        android:text="谷" android:textColor="@color/white"
+                        android:textSize="22sp" android:textStyle="bold" />
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:layout_marginStart="12dp"
+                        android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="小谷云账号" android:textSize="16sp" android:textStyle="bold"
+                            android:textColor="@color/text_primary" />
+                        <TextView android:id="@+id/tvAccountPhone" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:layout_marginTop="2dp"
+                            android:text="已登录" android:textSize="14sp"
+                            android:textColor="@color/text_secondary" />
+                        <TextView android:id="@+id/tvRememberState" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:layout_marginTop="2dp"
+                            android:textSize="12sp" android:textColor="@color/text_tertiary" />
+                    </LinearLayout>
+                </LinearLayout>
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp" android:text="快捷工具"
+                    android:textColor="@color/text_secondary" android:textSize="13sp" android:textStyle="bold" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:layout_marginTop="6dp">
+                    <LinearLayout android:id="@+id/btnToolDevices"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:layout_margin="4dp"
+                        android:background="@drawable/bg_card" android:elevation="2dp"
+                        android:orientation="vertical" android:padding="12dp"
+                        android:gravity="center_horizontal">
+                        <TextView android:layout_width="40dp" android:layout_height="40dp"
+                            android:background="@drawable/bg_tool_icon" android:gravity="center"
+                            android:text="管" android:textColor="@color/primary"
+                            android:textSize="16sp" android:textStyle="bold" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp" android:text="@string/tool_devices"
+                            android:textSize="14sp" android:textStyle="bold"
+                            android:textColor="@color/text_primary" />
+                    </LinearLayout>
+                    <LinearLayout android:id="@+id/btnToolAlbum"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:layout_margin="4dp"
+                        android:background="@drawable/bg_card" android:elevation="2dp"
+                        android:orientation="vertical" android:padding="12dp"
+                        android:gravity="center_horizontal">
+                        <TextView android:layout_width="40dp" android:layout_height="40dp"
+                            android:background="@drawable/bg_tool_icon" android:gravity="center"
+                            android:text="册" android:textColor="@color/primary"
+                            android:textSize="16sp" android:textStyle="bold" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp" android:text="@string/tool_album"
+                            android:textSize="14sp" android:textStyle="bold"
+                            android:textColor="@color/text_primary" />
+                    </LinearLayout>
+                    <LinearLayout android:id="@+id/btnToolShare"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:layout_margin="4dp"
+                        android:background="@drawable/bg_card" android:elevation="2dp"
+                        android:orientation="vertical" android:padding="12dp"
+                        android:gravity="center_horizontal">
+                        <TextView android:layout_width="40dp" android:layout_height="40dp"
+                            android:background="@drawable/bg_tool_icon" android:gravity="center"
+                            android:text="享" android:textColor="@color/primary"
+                            android:textSize="16sp" android:textStyle="bold" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp" android:text="@string/tool_my_share"
+                            android:textSize="14sp" android:textStyle="bold"
+                            android:textColor="@color/text_primary" />
+                    </LinearLayout>
+                </LinearLayout>
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp" android:background="@drawable/bg_card"
+                    android:elevation="2dp" android:orientation="vertical" android:padding="16dp">
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="@string/my_debug_title" android:textSize="16sp" android:textStyle="bold"
+                        android:textColor="@color/text_primary" />
+                    <TextView android:id="@+id/tvDebugStatus" android:layout_width="match_parent"
+                        android:layout_height="wrap_content" android:layout_marginTop="4dp"
+                        android:text="调试上传：未上传" android:textSize="12sp"
+                        android:textColor="@color/text_secondary" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:layout_marginTop="8dp">
+                        <Button android:id="@+id/btnUploadDebug" android:layout_width="0dp"
+                            android:layout_height="48dp" android:layout_weight="1"
+                            android:background="@drawable/bg_btn_white_capsule"
+                            android:textColor="@color/text_primary" android:textSize="14sp"
+                            android:textAllCaps="false" android:text="立即上传调试日志" />
+                        <Button android:id="@+id/btnCopyDebug" android:layout_width="0dp"
+                            android:layout_height="48dp" android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:background="@drawable/bg_btn_white_capsule"
+                            android:textColor="@color/text_primary" android:textSize="14sp"
+                            android:textAllCaps="false" android:text="复制本地调试日志" />
+                    </LinearLayout>
+                </LinearLayout>
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp" android:background="@drawable/bg_card"
+                    android:elevation="2dp" android:orientation="vertical" android:padding="8dp">
+                    <TextView android:id="@+id/rowFaq" android:layout_width="match_parent"
+                        android:layout_height="wrap_content" android:background="?attr/selectableItemBackground"
+                        android:clickable="true" android:focusable="true"
+                        android:padding="16dp" android:text="@string/my_faq"
+                        android:textSize="16sp" android:textColor="@color/text_primary" />
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:background="@color/divider" />
+                    <TextView android:id="@+id/rowHelp" android:layout_width="match_parent"
+                        android:layout_height="wrap_content" android:background="?attr/selectableItemBackground"
+                        android:clickable="true" android:focusable="true"
+                        android:padding="16dp" android:text="@string/my_help"
+                        android:textSize="16sp" android:textColor="@color/text_primary" />
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:background="@color/divider" />
+                    <TextView android:id="@+id/rowGeneralTools" android:layout_width="match_parent"
+                        android:layout_height="wrap_content" android:background="?attr/selectableItemBackground"
+                        android:clickable="true" android:focusable="true"
+                        android:padding="16dp" android:text="@string/my_general_tools"
+                        android:textSize="16sp" android:textColor="@color/text_primary" />
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:background="@color/divider" />
+                    <TextView android:id="@+id/rowAccountSecurity" android:layout_width="match_parent"
+                        android:layout_height="wrap_content" android:background="?attr/selectableItemBackground"
+                        android:clickable="true" android:focusable="true"
+                        android:padding="16dp" android:text="@string/my_account_security"
+                        android:textSize="16sp" android:textColor="@color/text_primary" />
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:background="@color/divider" />
+                    <TextView android:id="@+id/rowAbout" android:layout_width="match_parent"
+                        android:layout_height="wrap_content" android:background="?attr/selectableItemBackground"
+                        android:clickable="true" android:focusable="true"
+                        android:padding="16dp" android:text="@string/my_about"
+                        android:textSize="16sp" android:textColor="@color/text_primary" />
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:background="@color/divider" />
+                    <TextView android:id="@+id/rowLogout" android:layout_width="match_parent"
+                        android:layout_height="wrap_content" android:background="?attr/selectableItemBackground"
+                        android:clickable="true" android:focusable="true"
+                        android:padding="16dp" android:text="@string/logout"
+                        android:textSize="16sp" android:textColor="@color/error" />
+                </LinearLayout>
+                <TextView android:id="@+id/tvVersion" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:layout_marginTop="16dp"
+                    android:gravity="center" android:textSize="12sp"
+                    android:textColor="@color/text_tertiary" />
+            </LinearLayout>
+        </ScrollView>
+    </FrameLayout>
+    <!-- ============ 底部导航 ============ -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="horizontal">
-        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:text="@string/device_list"
-            android:textSize="22sp" android:textStyle="bold" />
-        <Button android:id="@+id/btnMessages" android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:text="消息" />
-        <Button android:id="@+id/btnLogout" android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:text="@string/logout" />
+        android:layout_marginStart="12dp" android:layout_marginEnd="12dp"
+        android:layout_marginBottom="12dp" android:background="@drawable/bg_nav_bar"
+        android:elevation="4dp" android:orientation="horizontal" android:padding="8dp">
+        <FrameLayout android:id="@+id/tabHome" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1">
+            <TextView android:id="@+id/tvTabHome" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:gravity="center"
+                android:paddingTop="10dp" android:paddingBottom="10dp"
+                android:text="@string/tab_home" android:textSize="14sp" android:textStyle="bold"
+                android:textColor="@color/white" android:background="@drawable/bg_nav_selected" />
+        </FrameLayout>
+        <FrameLayout android:id="@+id/tabMessages" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1">
+            <TextView android:id="@+id/tvTabMessages" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:gravity="center"
+                android:paddingTop="10dp" android:paddingBottom="10dp"
+                android:text="@string/tab_messages" android:textSize="14sp" android:textStyle="bold"
+                android:textColor="@color/text_secondary" />
+            <TextView android:id="@+id/tvMsgBadge" android:layout_width="wrap_content"
+                android:layout_height="18dp" android:layout_gravity="top|end"
+                android:layout_marginTop="2dp" android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_badge_red" android:gravity="center"
+                android:minWidth="18dp" android:paddingStart="5dp" android:paddingEnd="5dp"
+                android:textColor="@color/white" android:textSize="10sp" android:textStyle="bold"
+                android:visibility="gone" />
+        </FrameLayout>
+        <FrameLayout android:id="@+id/tabTools" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1">
+            <TextView android:id="@+id/tvTabTools" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:gravity="center"
+                android:paddingTop="10dp" android:paddingBottom="10dp"
+                android:text="@string/tab_tools" android:textSize="14sp" android:textStyle="bold"
+                android:textColor="@color/text_secondary" />
+        </FrameLayout>
+        <FrameLayout android:id="@+id/tabMine" android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1">
+            <TextView android:id="@+id/tvTabMine" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:gravity="center"
+                android:paddingTop="10dp" android:paddingBottom="10dp"
+                android:text="@string/tab_mine" android:textSize="14sp" android:textStyle="bold"
+                android:textColor="@color/text_secondary" />
+        </FrameLayout>
     </LinearLayout>
-    <TextView android:id="@+id/tvStatus" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:layout_marginTop="8dp"
-        android:text="@string/connecting" />
-    <TextView android:id="@+id/tvCrash" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:layout_marginTop="8dp"
-        android:background="#FFF3E0" android:padding="8dp" android:textSize="12sp"
-        android:typeface="monospace" android:textIsSelectable="true"
-        android:visibility="gone" />
-    <Button android:id="@+id/btnCopyCrash" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:layout_marginTop="4dp"
-        android:text="复制崩溃日志（粘贴发给开发者）" android:visibility="gone" />
-    <Button android:id="@+id/btnClearCrash" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:layout_marginTop="4dp"
-        android:text="清除这条崩溃日志" android:visibility="gone" />
-    <TextView android:id="@+id/tvDebugStatus" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:layout_marginTop="4dp"
-        android:text="调试上传：未上传" android:textSize="12sp" />
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="horizontal" android:layout_marginTop="4dp">
-        <Button android:id="@+id/btnUploadDebug" android:layout_width="0dp"
-            android:layout_height="wrap_content" android:layout_weight="1"
-            android:text="立即上传调试日志" />
-        <Button android:id="@+id/btnCopyDebug" android:layout_width="0dp"
-            android:layout_height="wrap_content" android:layout_weight="1"
-            android:text="复制本地调试日志" />
-    </LinearLayout>
-    <androidx.recyclerview.widget.RecyclerView android:id="@+id/rvDevices"
-        android:layout_width="match_parent" android:layout_height="0dp"
-        android:layout_weight="1" android:layout_marginTop="8dp" />
-    <TextView android:id="@+id/tvEmpty" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:gravity="center"
-        android:text="@string/empty_devices" android:visibility="gone" />
-    <Button android:id="@+id/btnRetry" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:text="@string/retry"
-        android:visibility="gone" />
 </LinearLayout>

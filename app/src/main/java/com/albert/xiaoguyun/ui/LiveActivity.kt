@@ -23,6 +23,8 @@ import android.view.TextureView
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -115,6 +117,8 @@ class LiveActivity : AppCompatActivity() {
     private val ptzExecutor = Executors.newSingleThreadScheduledExecutor()
     private var ptzFuture: ScheduledFuture<*>? = null
     private var isFullscreen = false
+    // v1.2.5: live paused via the control bar (watchdog skips recovery while paused).
+    private var livePaused = false
 
     // v1.2.3 black-screen hardening. The v1.2.2 regression happened after a
     // double page-open: each LiveActivity starts THREE ExoPlayers, so two
@@ -152,10 +156,16 @@ class LiveActivity : AppCompatActivity() {
         videoContainer.addView(textureView, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         player = ExoRtmpPlayer(this, textureView, videoContainer)
-        pipTop = makePip(videoContainer, topMarginDp = 8)
-        pipBottom = makePip(videoContainer, topMarginDp = 106)
+        // v1.2.5: the two PiPs now live in the dual-channel strip below the
+        // video (channelPane1 = gun lens / panoramic, channelPane2 = ball
+        // lens / close-up), each in its own pane — same players, same crops,
+        // same tap-to-swap, only the container changed.
+        pipTop = makePip(findViewById(R.id.channelPane1))
+        pipBottom = makePip(findViewById(R.id.channelPane2))
         pipTop.crop = ExoRtmpPlayer.Crop.TOP
         pipBottom.crop = ExoRtmpPlayer.Crop.BOTTOM
+        applyCrops()
+        setupChannelDivider()
         pipTop.setMuted(true)
         pipBottom.setMuted(true)
         // v1.2.2: floating "退出全屏" — the old fullscreen hid every
@@ -165,6 +175,8 @@ class LiveActivity : AppCompatActivity() {
         btnExitFullscreen = Button(this).apply {
             text = "退出全屏"
             visibility = View.GONE
+            background = ContextCompat.getDrawable(this@LiveActivity, R.drawable.bg_btn_primary_capsule)
+            setTextColor(Color.WHITE)
             setOnClickListener { if (isFullscreen) toggleFullscreen() }
         }
         videoContainer.addView(btnExitFullscreen, FrameLayout.LayoutParams(
@@ -289,15 +301,46 @@ class LiveActivity : AppCompatActivity() {
             if (!intercomMutedByTalk) player.setMuted(muted)
             btnMute.text = if (muted) getString(R.string.unmute) else getString(R.string.mute)
         }
+        // v1.2.5: pause/resume the live players (ExoRtmpPlayer.pause() /
+        // resume() already existed; the watchdog skips recovery while paused).
+        val btnPause = findViewById<Button>(R.id.btnPauseLive)
+        btnPause.setOnClickListener {
+            livePaused = !livePaused
+            if (livePaused) {
+                player.pause(); pipTop.pause(); pipBottom.pause()
+            } else {
+                player.resume(); pipTop.resume(); pipBottom.resume()
+            }
+            btnPause.text = if (livePaused) getString(R.string.live_resume) else getString(R.string.live_pause)
+            DebugLog.log("UI", if (livePaused) "直播已暂停" else "直播继续播放")
+        }
         findViewById<Button>(R.id.btnPlayback).setOnClickListener {
             val i = Intent(this, PlaybackActivity::class.java)
             i.putExtra("sn", sn); i.putExtra("name", name); i.putExtra("netType", netType)
             startActivity(i)
         }
-        findViewById<Button>(R.id.btnDetail).setOnClickListener {
+        // v1.2.5 tool row: album (system gallery), flip (the flip controls
+        // live in the detail page), 云台 (scroll down to the PTZ card).
+        findViewById<Button>(R.id.btnAlbumLive).setOnClickListener { AlbumHelper.openAlbum(this) }
+        findViewById<Button>(R.id.btnFlipLive).setOnClickListener {
             val i = Intent(this, DeviceDetailActivity::class.java)
             i.putExtra("sn", sn); i.putExtra("name", name); startActivity(i)
         }
+        findViewById<Button>(R.id.btnPtzJump).setOnClickListener {
+            findViewById<ScrollView>(R.id.scrollControls)?.post {
+                val card = findViewById<View>(R.id.ptzCard)
+                findViewById<ScrollView>(R.id.scrollControls)?.smoothScrollTo(0, card.top)
+            }
+        }
+        // v1.2.5 top bar: back / share / settings. Share and settings both
+        // open the detail page (the share form lives there); nothing new.
+        findViewById<Button>(R.id.btnBackLive).setOnClickListener { finish() }
+        val openDetail = {
+            val i = Intent(this, DeviceDetailActivity::class.java)
+            i.putExtra("sn", sn); i.putExtra("name", name); startActivity(i)
+        }
+        findViewById<Button>(R.id.btnShareLive).setOnClickListener { openDetail() }
+        findViewById<Button>(R.id.btnSettingsLive).setOnClickListener { openDetail() }
         // PTZ: press sends a direction (repeated every 250 ms), release
         // only stops re-sending (no dir=0 — that is the home/reset
         // command). dir values: up=1, down=2, left=3, right=4.
@@ -316,7 +359,8 @@ class LiveActivity : AppCompatActivity() {
             val rec = recorder
             if (rec != null && rec.isRecording) {
                 btnRecord.text = "本地录像"
-                btnRecord.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FF6200EE"))
+                btnRecord.backgroundTintList = null
+                btnRecord.setTextColor(Color.parseColor("#111111"))
                 btnRecord.isEnabled = false
                 Thread {
                     val f = rec.stop()
@@ -345,7 +389,8 @@ class LiveActivity : AppCompatActivity() {
                         if (ok) {
                             recorder = newRec
                             btnRecord.text = "停止录像"
-                            btnRecord.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#D32F2F"))
+                            btnRecord.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FF5252"))
+                            btnRecord.setTextColor(Color.WHITE)
                             Toast.makeText(this, "正在录像：${out.absolutePath}", Toast.LENGTH_SHORT).show()
                         } else {
                             Toast.makeText(this, "录像启动失败：${newRec.lastError}", Toast.LENGTH_LONG).show()
@@ -367,7 +412,8 @@ class LiveActivity : AppCompatActivity() {
                         intercom.start()
                         btnIntercom.text = "正在说话…（松开结束）"
                         btnIntercom.backgroundTintList =
-                            ColorStateList.valueOf(Color.parseColor("#D32F2F"))
+                            ColorStateList.valueOf(Color.parseColor("#FF5252"))
+                        btnIntercom.setTextColor(Color.WHITE)
                     }
                     true
                 }
@@ -375,7 +421,8 @@ class LiveActivity : AppCompatActivity() {
                     intercom.stop()
                     btnIntercom.text = getString(R.string.intercom)
                     btnIntercom.backgroundTintList =
-                        ColorStateList.valueOf(Color.parseColor("#FF6200EE"))
+                        ColorStateList.valueOf(Color.parseColor("#007AFF"))
+                    btnIntercom.setTextColor(Color.WHITE)
                     true
                 }
                 else -> true
@@ -518,19 +565,46 @@ class LiveActivity : AppCompatActivity() {
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
-    /** One PiP: a small fixed-size TextureView in the video container's
-     * top-right corner, with its own (muted) player. Tap to make it big. */
-    private fun makePip(container: FrameLayout, topMarginDp: Int): ExoRtmpPlayer {
+    /** One channel pane: a TextureView filling the given pane, with its own
+     * (muted) player. Tap to make it big. (v1.2.5: panes moved out of the
+     * video container into the dual-channel strip; the player, crops and
+     * tap-to-swap are unchanged.) */
+    private fun makePip(pane: FrameLayout): ExoRtmpPlayer {
         val tv = TextureView(this)
-        val lp = FrameLayout.LayoutParams(
-            dp(160), dp(90),
-            android.view.Gravity.TOP or android.view.Gravity.END
-        )
-        lp.setMargins(0, dp(topMarginDp), dp(8), 0)
-        container.addView(tv, lp)
-        val p = ExoRtmpPlayer(this, tv, container, fixedSize = true)
+        pane.addView(tv, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        val p = ExoRtmpPlayer(this, tv, pane, fixedSize = true)
         tv.setOnClickListener { onPipTapped(p) }
         return p
+    }
+
+    /** Dual-channel divider: drag left/right to change the two panes'
+     * share of the row (layout weights only — playback logic untouched). */
+    private fun setupChannelDivider() {
+        val row = findViewById<LinearLayout>(R.id.channelRow)
+        val pane1 = findViewById<FrameLayout>(R.id.channelPane1)
+        val pane2 = findViewById<FrameLayout>(R.id.channelPane2)
+        findViewById<View>(R.id.channelDivider).setOnTouchListener { _, e ->
+            when (e.action) {
+                MotionEvent.ACTION_DOWN -> true
+                MotionEvent.ACTION_MOVE -> {
+                    val rowW = row.width.toFloat()
+                    if (rowW > 0) {
+                        val loc = IntArray(2)
+                        row.getLocationOnScreen(loc)
+                        val ratio = ((e.rawX - loc[0]) / rowW).coerceIn(0.25f, 0.75f)
+                        (pane1.layoutParams as LinearLayout.LayoutParams).weight = ratio
+                        (pane2.layoutParams as LinearLayout.LayoutParams).weight = 1f - ratio
+                        pane1.requestLayout()
+                        pane2.requestLayout()
+                        pipTop.refit()
+                        pipBottom.refit()
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
     }
 
     /** The tapped PiP's crop becomes the big view's crop; the PiPs take
@@ -546,6 +620,8 @@ class LiveActivity : AppCompatActivity() {
         val rest = ExoRtmpPlayer.Crop.entries.filter { it != bigCrop }
         pipTop.crop = rest[0]
         pipBottom.crop = rest[1]
+        findViewById<TextView>(R.id.tvChannel1Label)?.text = "通道1 · ${cropName(pipTop.crop)}"
+        findViewById<TextView>(R.id.tvChannel2Label)?.text = "通道2 · ${cropName(pipBottom.crop)}"
     }
 
     /** Plays the RTMP URL: main pane immediately, the two muted PiPs only
@@ -601,10 +677,14 @@ class LiveActivity : AppCompatActivity() {
     private fun updateLedButton() {
         val btn = findViewById<Button>(R.id.btnFillLight)
         btn.text = "补光灯：${if (ledOn) "开" else "关"}"
-        // Warm amber when on, default material tint when off.
-        btn.backgroundTintList = ColorStateList.valueOf(
-            if (ledOn) Color.parseColor("#FFB300") else Color.parseColor("#FF6200EE"),
-        )
+        // Warm amber when on; neutral chip when off (tint cleared).
+        if (ledOn) {
+            btn.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FFB300"))
+            btn.setTextColor(Color.parseColor("#111111"))
+        } else {
+            btn.backgroundTintList = null
+            btn.setTextColor(Color.parseColor("#111111"))
+        }
     }
 
     private fun bindPtz(id: Int, dir: Int) {
@@ -677,7 +757,7 @@ class LiveActivity : AppCompatActivity() {
         watchdogTask?.let { uiHandler.removeCallbacks(it) }
         val task = object : Runnable {
             override fun run() {
-                if (isFinishing || playErrored || rtmpAddr != addr) return
+                if (isFinishing || playErrored || rtmpAddr != addr || livePaused) return
                 if (player.hasRenderedFrame) return
                 if (mainRecoveries < 2) {
                     mainRecoveries++
