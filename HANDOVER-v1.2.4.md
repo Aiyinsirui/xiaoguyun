@@ -239,7 +239,8 @@
 - 全部构建 BUILD SUCCESSFUL；最新 APK 已安装平板。
 
 ### 推送记录
-- 分支 `v1.2.4-led-recording-ui`，不推 main、不建 Release；远端 HEAD 已到 b6809b3
-  （c534b43 功能集 + b6809b3 补光灯门控修复）。
+- 分支 `v1.2.4-led-recording-ui`，不推 main、不建 Release；远端与本机该分支保持同步，
+  关键提交链：c534b43（功能集）→ b6809b3（补光灯门控修复）→ 2d01a0e（回归记录）
+  → c819c54（审计四项清理），其后为文档同步提交。
 - 本机直推 GitHub 卡死（见踩坑 9），改用 bundle + 新加坡服务器中转；服务器侧临时 askpass
   脚本与 bundle 用完即删（已 ls 核验），token 未出现在任何提交/文档/本机磁盘中。
