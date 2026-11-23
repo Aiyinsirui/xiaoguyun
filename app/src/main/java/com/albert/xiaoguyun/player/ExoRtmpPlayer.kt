@@ -84,7 +84,14 @@ class ExoRtmpPlayer(
         }
 
     var onError: (() -> Unit)? = null
+    /** v1.2.3: fired once after every play() once the first frame is rendered. */
+    var onFirstFrame: (() -> Unit)? = null
     val isPlaying: Boolean get() = try { player.isPlaying } catch (_: Exception) { false }
+    /** True after the first rendered frame of the current play(). */
+    @Volatile var hasRenderedFrame = false
+        private set
+    private var lastUrl: String? = null
+    private val instanceId = System.identityHashCode(this)
     private var lastVideoSize: VideoSize? = null
 
     /** Re-run the aspect fit (e.g. after a fullscreen toggle changes the container). */
@@ -101,14 +108,37 @@ class ExoRtmpPlayer(
     init {
         player.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
-                DebugLog.log("PLAYER", "error: ${error.errorCodeName} ${error.message}")
+                DebugLog.log("PLAYER", "#$instanceId error: ${error.errorCodeName} ${error.message}")
                 onError?.invoke()
             }
 
             override fun onVideoSizeChanged(videoSize: VideoSize) {
-                DebugLog.log("PLAYER", "video size ${videoSize.width}x${videoSize.height}")
+                DebugLog.log("PLAYER", "#$instanceId video size ${videoSize.width}x${videoSize.height}")
                 lastVideoSize = videoSize
                 fitViewToVideo(videoSize)
+            }
+
+            // v1.2.3: state/frame diagnostics — the v1.2.2 black-screen
+            // regression produced no error and no video-size line, so the
+            // stall was invisible. These traces show exactly where a
+            // player gets stuck (buffering forever vs idle vs rendering).
+            override fun onPlaybackStateChanged(state: Int) {
+                val name = when (state) {
+                    Player.STATE_IDLE -> "IDLE"
+                    Player.STATE_BUFFERING -> "BUFFERING"
+                    Player.STATE_READY -> "READY"
+                    Player.STATE_ENDED -> "ENDED"
+                    else -> state.toString()
+                }
+                DebugLog.log("PLAYER", "#$instanceId state=$name")
+            }
+
+            override fun onRenderedFirstFrame() {
+                if (!hasRenderedFrame) {
+                    hasRenderedFrame = true
+                    DebugLog.log("PLAYER", "#$instanceId 首帧已渲染")
+                    onFirstFrame?.invoke()
+                }
             }
         })
     }
@@ -203,7 +233,10 @@ class ExoRtmpPlayer(
         (v * appContext.resources.displayMetrics.density).toInt()
 
     fun play(url: String) {
+        lastUrl = url
+        hasRenderedFrame = false
         stop()
+        DebugLog.log("PLAYER", "#$instanceId play() url=${url.substringAfter("://").substringBefore("/")}")
         val item = MediaItem.fromUri(url)
         val source = if (url.startsWith("rtmp://")) {
             ProgressiveMediaSource.Factory(
@@ -218,6 +251,14 @@ class ExoRtmpPlayer(
         player.setMediaSource(source)
         player.prepare()
         player.play()
+    }
+
+    /** v1.2.3: re-prepare the last URL (watchdog auto-recovery). No-op if
+     *  this player has never been given a URL. */
+    fun replay() {
+        val url = lastUrl ?: return
+        DebugLog.log("PLAYER", "#$instanceId replay() 自动恢复重连")
+        play(url)
     }
 
     /** Plays a local file (downloaded cloud recording). */

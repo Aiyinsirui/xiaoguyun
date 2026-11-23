@@ -28,12 +28,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 class WsClient(private val store: TokenStore) {
     companion object {
         const val WS_URL = "wss://vlink.daguipc.com:9443/cloud"
-        // stream 0/1 <-> HD/SD mapping is not in the static code.
-        // Assumed here: 1 = high (default in the original app), 0 = fluent.
-        // Swap the labels in LiveActivity if the real test shows the opposite.
-        // TODO §5-#2 (unchanged from v1.0).
-        const val STREAM_HIGH = 1
-        const val STREAM_FLUENT = 0
+        // stream 0/1 <-> HD/SD mapping, confirmed empirically on device
+        // 2026-12-01 from 108 PLAYER "video size" reports paired with the
+        // code-22 requests: stream 1 -> 640x720 (SD), stream 0 -> 1920x2160
+        // (HD). The original app defaults to wire value 1 = fluent.
+        const val STREAM_HIGH = 0
+        const val STREAM_FLUENT = 1
         // PTZ dir, CONFIRMED by audit (see AUDIT.md): steering-wheel index
         // 0=up/1=down/2=left/3=right -> changeSteeringWheelDirection
         // (0->2, 1->3, 2->0, 3->1) -> changePTZActionValue
@@ -238,6 +238,29 @@ class WsClient(private val store: TokenStore) {
         sendRaw(frame(26, "volplay", sn, JSONObject().put("state", if (open) 1 else 0)))
     }
 
+    /**
+     * v1.2.3: code 26 with a one-shot ack. The original app starts the RTMP
+     * publish only AFTER the volplay reply arrives (VideoLiveActivity
+     * .controlVol -> CommandListener.onMessage -> recordingSound). Starting
+     * the publish in parallel could reach the relay before the camera side
+     * was switched into talk mode. [onAck] gets true on reply, false on
+     * timeout/socket failure — callers decide whether to fall back.
+     */
+    fun requestVolPlay(sn: String, open: Boolean, timeoutMs: Long = 2000, onAck: (Boolean) -> Unit) {
+        pending[26] = { onAck(true) }
+        runWhenSubscribed {
+            if (!sendRaw(frame(26, "volplay", sn, JSONObject().put("state", if (open) 1 else 0)))) {
+                pending.remove(26)
+                onAck(false)
+                return@runWhenSubscribed
+            }
+            scope.launch {
+                delay(timeoutMs)
+                if (pending.remove(26) != null) onAck(false)
+            }
+        }
+    }
+
     // ---- Playback: SD card via WS (codes 23/24/25/27/28) ----
     fun requestRecordDates(sn: String, date: String, onResult: (JSONObject) -> Unit) {
         pending[27] = onResult
@@ -308,9 +331,18 @@ class WsClient(private val store: TokenStore) {
      */
 
     // ---- LED / detection / tracking / flip / record params ----
-    /** code 11: led value. TODO: 0/1 meaning not expanded statically; treated as on/off. */
+    /**
+     * code 11 "led": camera fill light. Verified against the original app
+     * (DGSocketRepository.getLedSetParam / VideoLiveActivity):
+     *   led=1 turn on, led=0 turn off, led=3 query current state.
+     * Reply frame carries code/state 11 with data.led (0/1); the original
+     * auto-switches the light off 5 minutes after switch-on.
+     */
     fun sendLed(sn: String, led: Int) =
         send(11, "led", sn, JSONObject().put("led", led))
+
+    /** Query the current fill-light state (original sends led=3 on entry). */
+    fun requestLedState(sn: String) = sendLed(sn, 3)
 
     fun requestDetection(sn: String, onResult: (JSONObject?) -> Unit) =
         request(15, "getdetection", sn, null, 5000, onResult)

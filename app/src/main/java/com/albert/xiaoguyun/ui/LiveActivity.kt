@@ -1,14 +1,21 @@
 package com.albert.xiaoguyun.ui
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.ContentValues
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.Color
+import android.content.res.ColorStateList
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.provider.MediaStore
 import android.view.GestureDetector
 import android.view.MotionEvent
@@ -20,8 +27,10 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.albert.xiaoguyun.DebugLog
 import com.albert.xiaoguyun.R
+import com.albert.xiaoguyun.audio.MicSelfTest
 import com.albert.xiaoguyun.net.ApiClient
 import com.albert.xiaoguyun.net.TokenStore
 import com.albert.xiaoguyun.player.ExoRtmpPlayer
@@ -46,7 +55,9 @@ class LiveActivity : AppCompatActivity() {
     private lateinit var btnExitFullscreen: Button
     private lateinit var sn: String
     private var netType: String? = null
-    private var stream = WsClient.STREAM_HIGH
+    // Default wire value 1 = fluent, matching the original app's default
+    // (STREAM_HIGH/FLUENT semantics were verified empirically, see WsClient).
+    private var stream = WsClient.STREAM_FLUENT
     private var muted = false
     private var rtmpAddr: String? = null
     private var intercomMutedByTalk = false
@@ -65,6 +76,20 @@ class LiveActivity : AppCompatActivity() {
     private var trackOn = false
     private var trackSen = 2
 
+    // Fill light (v1.2.4, code 11 "led"). The original app auto-switches it
+    // off 5 minutes after switch-on (VideoLiveActivity.ledCloseTime=300000).
+    private var ledOn = false
+    private val ledHandler = Handler(Looper.getMainLooper())
+    private val ledAutoOff = Runnable {
+        if (ledOn) {
+            ledOn = false
+            ws.sendLed(sn, 0)
+            updateLedButton()
+            DebugLog.log("UI", "补光灯 5 分钟自动关闭")
+            Toast.makeText(this, "补光灯已自动关闭", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     // PTZ (v1.2.1, root cause found in the original app's code):
     // the original re-sends the direction every 250 ms while held, and on
     // release it ONLY cancels the scheduler — it never sends anything.
@@ -80,6 +105,25 @@ class LiveActivity : AppCompatActivity() {
     private val ptzExecutor = Executors.newSingleThreadScheduledExecutor()
     private var ptzFuture: ScheduledFuture<*>? = null
     private var isFullscreen = false
+
+    // v1.2.3 black-screen hardening. The v1.2.2 regression happened after a
+    // double page-open: each LiveActivity starts THREE ExoPlayers, so two
+    // quick opens burst SIX RTMP pulls at the relay over a flaky network and
+    // every player stalled in BUFFERING forever (no error, no frame). The
+    // PiPs now wait for the main player's first frame (4 s fallback), and a
+    // watchdog re-prepares the main player (max twice) when no frame arrives.
+    private val uiHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var pipStartTask: Runnable? = null
+    private var watchdogTask: Runnable? = null
+    private var mainRecoveries = 0
+
+    // v1.2.3: ADB-triggered microphone self-test (MicSelfTest). Registered
+    // only while the live page is open, not exported to other apps.
+    private val micTestReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == MicSelfTest.ACTION) MicSelfTest.run(this@LiveActivity)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -168,11 +212,26 @@ class LiveActivity : AppCompatActivity() {
         }
         // Diagnostic: show the last WS frame id while waiting, so a
         // screenshot tells us whether the server answered at all.
-        ws.rawListener = { code, _ ->
+        ws.rawListener = { code, obj ->
             runOnUiThread {
                 val t = tvStatus.text.toString()
                 if (t.startsWith("正在请求直播地址")) {
                     tvStatus.text = "正在请求直播地址…（已收到信令 $code）"
+                }
+                // Fill-light reply (code/state 11): data.led 0=off 1=on.
+                if (code == 11) {
+                    val v = obj.optJSONObject("data")?.optInt("led", -1) ?: -1
+                    if (v == 0 || v == 1) {
+                        ledOn = v == 1
+                        updateLedButton()
+                        if (ledOn) {
+                            ledHandler.removeCallbacks(ledAutoOff)
+                            ledHandler.postDelayed(ledAutoOff, 300_000)
+                        } else {
+                            ledHandler.removeCallbacks(ledAutoOff)
+                        }
+                        DebugLog.log("UI", "补光灯状态回包 led=$v")
+                    }
                 }
             }
         }
@@ -238,6 +297,7 @@ class LiveActivity : AppCompatActivity() {
             val rec = recorder
             if (rec != null && rec.isRecording) {
                 btnRecord.text = "本地录像"
+                btnRecord.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FF6200EE"))
                 btnRecord.isEnabled = false
                 Thread {
                     val f = rec.stop()
@@ -266,6 +326,7 @@ class LiveActivity : AppCompatActivity() {
                         if (ok) {
                             recorder = newRec
                             btnRecord.text = "停止录像"
+                            btnRecord.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#D32F2F"))
                             Toast.makeText(this, "正在录像：${out.absolutePath}", Toast.LENGTH_SHORT).show()
                         } else {
                             Toast.makeText(this, "录像启动失败：${newRec.lastError}", Toast.LENGTH_LONG).show()
@@ -276,7 +337,8 @@ class LiveActivity : AppCompatActivity() {
         }
         findViewById<Button>(R.id.btnLens).setOnClickListener { switchLens() }
         // Intercom: press-and-hold to talk (safer for echo than toggle).
-        findViewById<Button>(R.id.btnIntercom).setOnTouchListener { _, e ->
+        val btnIntercom = findViewById<Button>(R.id.btnIntercom)
+        btnIntercom.setOnTouchListener { _, e ->
             when (e.action) {
                 MotionEvent.ACTION_DOWN -> {
                     if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
@@ -284,11 +346,17 @@ class LiveActivity : AppCompatActivity() {
                         ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1)
                     } else {
                         intercom.start()
+                        btnIntercom.text = "正在说话…（松开结束）"
+                        btnIntercom.backgroundTintList =
+                            ColorStateList.valueOf(Color.parseColor("#D32F2F"))
                     }
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     intercom.stop()
+                    btnIntercom.text = getString(R.string.intercom)
+                    btnIntercom.backgroundTintList =
+                        ColorStateList.valueOf(Color.parseColor("#FF6200EE"))
                     true
                 }
                 else -> true
@@ -315,7 +383,25 @@ class LiveActivity : AppCompatActivity() {
             DebugLog.log("UI", "智能追踪 ${if (trackOn) "开" else "关"} sen=$trackSen")
             Toast.makeText(this, "智能追踪已${if (trackOn) "开启" else "关闭"}", Toast.LENGTH_SHORT).show()
         }
+        findViewById<Button>(R.id.btnFillLight).setOnClickListener {
+            // Toggle like the original (VideoLiveClickControl): the reply
+            // frame (code 11) is the source of truth and re-renders the button.
+            val turnOn = !ledOn
+            ws.sendLed(sn, if (turnOn) 1 else 0)
+            ledOn = turnOn
+            updateLedButton()
+            if (turnOn) {
+                ledHandler.removeCallbacks(ledAutoOff)
+                ledHandler.postDelayed(ledAutoOff, 300_000)
+            } else {
+                ledHandler.removeCallbacks(ledAutoOff)
+            }
+            DebugLog.log("UI", "补光灯手动${if (turnOn) "开" else "关"}")
+            Toast.makeText(this, "补光灯已${if (turnOn) "开启（5 分钟后自动关）" else "关闭"}", Toast.LENGTH_SHORT).show()
+        }
         refreshTrackState()
+        // Query the current fill-light state (original sends led=3 on entry).
+        ws.requestLedState(sn)
         // v1.2.1: fullscreen (button + single tap on the video).
         isFullscreen = savedInstanceState?.getBoolean("fullscreen") == true
         findViewById<Button>(R.id.btnFullscreen).setOnClickListener { toggleFullscreen() }
@@ -346,6 +432,14 @@ class LiveActivity : AppCompatActivity() {
         })
         videoContainer.setOnTouchListener { _, e -> gesture.onTouchEvent(e) }
         applyFullscreen()
+        // Debug-only ADB probe (MicSelfTest). EXPORTED is required because
+        // `am broadcast` runs as the shell uid, not the app uid, so a
+        // NOT_EXPORTED receiver rejects it. The receiver only measures mic
+        // levels and writes logs; remove this whole block before release.
+        ContextCompat.registerReceiver(
+            this, micTestReceiver, IntentFilter(MicSelfTest.ACTION),
+            ContextCompat.RECEIVER_EXPORTED,
+        )
         ws.connect()
     }
 
@@ -428,11 +522,28 @@ class LiveActivity : AppCompatActivity() {
         pipBottom.crop = rest[1]
     }
 
-    /** Plays the same RTMP URL on all three panes. */
+    /** Plays the RTMP URL: main pane immediately, the two muted PiPs only
+     *  after the main pane renders its first frame (4 s fallback). */
     private fun playAll(addr: String) {
+        mainRecoveries = 0
         player.play(addr)
-        pipTop.play(addr)
-        pipBottom.play(addr)
+        pipStartTask?.let { uiHandler.removeCallbacks(it) }
+        // v1.2.3: the first-frame callback and the 4 s fallback share one
+        // Runnable — without this guard the fallback still fired after the
+        // callback had already started the PiPs, restarting both players once.
+        var pipsStarted = false
+        val startPips = Runnable {
+            if (isFinishing || pipsStarted) return@Runnable
+            pipsStarted = true
+            // Cancel the still-pending 4 s fallback (same Runnable instance).
+            pipStartTask?.let { uiHandler.removeCallbacks(it) }
+            DebugLog.log("PLAYER", "启动两个小画面播放器")
+            pipTop.play(addr)
+            pipBottom.play(addr)
+        }
+        pipStartTask = startPips
+        player.onFirstFrame = { uiHandler.post(startPips) }
+        uiHandler.postDelayed(startPips, 4000)
     }
 
     private fun cropName(c: ExoRtmpPlayer.Crop): String = when (c) {
@@ -459,6 +570,15 @@ class LiveActivity : AppCompatActivity() {
     private fun updateTrackButton() {
         findViewById<Button>(R.id.btnTrack).text =
             "智能追踪：${if (trackOn) "开" else "关"}"
+    }
+
+    private fun updateLedButton() {
+        val btn = findViewById<Button>(R.id.btnFillLight)
+        btn.text = "补光灯：${if (ledOn) "开" else "关"}"
+        // Warm amber when on, default material tint when off.
+        btn.backgroundTintList = ColorStateList.valueOf(
+            if (ledOn) Color.parseColor("#FFB300") else Color.parseColor("#FF6200EE"),
+        )
     }
 
     private fun bindPtz(id: Int, dir: Int) {
@@ -516,17 +636,37 @@ class LiveActivity : AppCompatActivity() {
                 tvStatus.text = "已拿到直播地址（$host，${if (stream == WsClient.STREAM_HIGH) "高清" else "流畅"}），正在播放…"
                 playErrored = false
                 playAll(addr)
-                // v1.1.4 watchdog: if VLC still has no video 8 s after the
-                // address arrived, say so explicitly — distinguishes "no
-                // address" from "address OK but player gets no frames".
-                // v1.1.5: do not overwrite an explicit playback error.
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    if (!isFinishing && !playErrored && rtmpAddr == addr && !player.isPlaying) {
-                        tvStatus.text = "已拿到地址但 8 秒无画面：播放器未收到视频流（取流已成功，问题在播放环节，请截此屏）"
-                    }
-                }, 8000)
+                armWatchdog(addr)
             }
         }
+    }
+
+    /**
+     * v1.2.3 watchdog: 8 s after an address arrived, if the main player has
+     * not rendered a single frame (the v1.2.2 silent black-screen shape),
+     * re-prepare it automatically — up to twice. Explicit playback errors
+     * and the definition fallback still take precedence.
+     */
+    private fun armWatchdog(addr: String) {
+        watchdogTask?.let { uiHandler.removeCallbacks(it) }
+        val task = object : Runnable {
+            override fun run() {
+                if (isFinishing || playErrored || rtmpAddr != addr) return
+                if (player.hasRenderedFrame) return
+                if (mainRecoveries < 2) {
+                    mainRecoveries++
+                    tvStatus.text = "已拿到地址但 8 秒无画面，自动重连（第 $mainRecoveries 次）…"
+                    DebugLog.log("PLAYER", "看门狗：主画面无帧，自动 replay 第 $mainRecoveries 次")
+                    player.replay()
+                    uiHandler.postDelayed(this, 8000)
+                } else {
+                    tvStatus.text = "已拿到地址但多次重连无画面：播放器未收到视频流（取流已成功，问题在播放环节，请截此屏）"
+                    DebugLog.log("PLAYER", "看门狗：两次恢复仍无帧，放弃自动重试")
+                }
+            }
+        }
+        watchdogTask = task
+        uiHandler.postDelayed(task, 8000)
     }
 
     /**
@@ -589,6 +729,13 @@ class LiveActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        try { unregisterReceiver(micTestReceiver) } catch (_: Exception) {}
+        try {
+            pipStartTask?.let { uiHandler.removeCallbacks(it) }
+            watchdogTask?.let { uiHandler.removeCallbacks(it) }
+            player.onFirstFrame = null
+        } catch (_: Exception) {}
+        try { ledHandler.removeCallbacks(ledAutoOff) } catch (_: Exception) {}
         try { ptzFuture?.cancel(true); ptzExecutor.shutdownNow() } catch (_: Exception) {}
         try { if (intercom.isTalking) intercom.stop() } catch (_: Exception) {}
         try { recorder?.release() } catch (_: Exception) {}

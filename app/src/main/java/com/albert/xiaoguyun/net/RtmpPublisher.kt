@@ -1,5 +1,6 @@
 package com.albert.xiaoguyun.net
 
+import com.albert.xiaoguyun.DebugLog
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
@@ -46,9 +47,18 @@ class RtmpPublisher(private val url: String) {
     private var outChunkSize = 128
     private var streamId = 0
     private var startMs = 0L
+    /** v1.2.3: timestamps start at the FIRST audio frame (value 0), not at
+     *  TCP connect — matches FFmpeg-style publishers and avoids an initial
+     *  ~300-600 ms timestamp offset caused by handshake/connect latency. */
+    @Volatile private var tsBaseMs = 0L
     private val connectLatch = CountDownLatch(1)
     private val createStreamLatch = CountDownLatch(1)
     @Volatile private var connectOk = false
+    /** Set when the server's onStatus "Publish Start"/"status" is observed. */
+    @Volatile var publishAccepted = false
+        private set
+    /** True while the uplink socket is expected to be usable. */
+    val isAlive: Boolean get() = running.get()
     @Volatile var lastError: String? = null
         private set
 
@@ -80,6 +90,8 @@ class RtmpPublisher(private val url: String) {
             out = sock.getOutputStream()
             running.set(true)
             startMs = System.currentTimeMillis()
+            tsBaseMs = 0L
+            publishAccepted = false
             handshake(sock.getInputStream())
             startReader(sock.getInputStream())
             sendConnect(parsed)
@@ -108,7 +120,9 @@ class RtmpPublisher(private val url: String) {
         // 0x70 (8-bit) made the peer hear nothing (probed 2026-11-23).
         payload[0] = 0x72.toByte()
         g711.copyInto(payload, 1)
-        val ts = (System.currentTimeMillis() - startMs).toInt()
+        val now = System.currentTimeMillis()
+        if (tsBaseMs == 0L) tsBaseMs = now
+        val ts = (now - tsBaseMs).toInt()
         try {
             synchronized(this) { writeChunk(fmt = 0, csid = 4, timestamp = ts, msgType = 0x08, streamId = streamId, payload = payload) }
         } catch (_: Exception) { /* socket gone; stop() will clean up */ }
@@ -328,7 +342,14 @@ class RtmpPublisher(private val url: String) {
                         handleServerMessage(pendingType[csid] ?: msgType, payload)
                     }
                 }
-            } catch (_: Exception) { /* socket closed */ }
+            } catch (e: Exception) {
+                // v1.2.3: a mid-talk server close used to fail silently — the
+                // UI kept showing "对讲中" while every frame was dropped.
+                if (running.get()) {
+                    lastError = "RTMP 连接断开: ${e.message}"
+                    DebugLog.log("TALK", lastError!!)
+                }
+            }
         }, "rtmp-reader").apply { isDaemon = true; start() }
     }
 
@@ -349,7 +370,7 @@ class RtmpPublisher(private val url: String) {
                     try { synchronized(this) { writeChunk(0, 2, 0, 0x04, 0, pong) } } catch (_: Exception) {}
                 }
             }
-            0x14 -> { // AMF0 command: _result
+            0x14 -> { // AMF0 command: _result / onStatus / _error
                 try {
                     val reader = AmfReader(payload)
                     val cmd = reader.readStringOrNull()
@@ -365,6 +386,22 @@ class RtmpPublisher(private val url: String) {
                     } else if (cmd == "_error") {
                         if (connectLatch.count > 0) connectLatch.countDown()
                         if (createStreamLatch.count > 0) createStreamLatch.countDown()
+                    } else if (cmd == "onStatus") {
+                        // onStatus <txn:0> <null> <object{level,code,description}>
+                        reader.readNumberOrNull()
+                        reader.readValue()
+                        val fields = reader.readStringFields()
+                        val level = fields["level"]
+                        val code = fields["code"]
+                        val desc = fields["description"]
+                        DebugLog.log("TALK", "RTMP onStatus level=$level code=$code desc=$desc")
+                        if (level == "error") {
+                            lastError = "RTMP 发布被拒: $code $desc"
+                            running.set(false)
+                            try { socket?.close() } catch (_: Exception) {}
+                        } else if (level == "status") {
+                            publishAccepted = true
+                        }
                     }
                 } catch (_: Exception) { /* ignore malformed command */ }
             }
@@ -421,6 +458,31 @@ class RtmpPublisher(private val url: String) {
                 }
                 else -> { pos++ }
             }
+        }
+
+        /**
+         * Reads the STRING fields of the AMF0 object at the current position
+         * (onStatus info object: level/code/description are all strings).
+         * Non-string values are skipped. Returns an empty map if the next
+         * byte is not an object marker.
+         */
+        fun readStringFields(): Map<String, String> {
+            val out = HashMap<String, String>()
+            if (pos >= data.size || data[pos] != 0x03.toByte()) return out
+            pos++ // object marker
+            while (pos + 2 < data.size) {
+                val kLen = ((data[pos].toInt() and 0xFF) shl 8) or (data[pos + 1].toInt() and 0xFF)
+                pos += 2
+                if (kLen == 0) { pos++; break } // 00 00 09 end marker
+                val key = String(data, pos, kLen, Charsets.UTF_8)
+                pos += kLen
+                if (pos < data.size && data[pos] == 0x02.toByte()) {
+                    out[key] = readStringOrNull() ?: ""
+                } else {
+                    readValue()
+                }
+            }
+            return out
         }
     }
 }

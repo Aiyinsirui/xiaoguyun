@@ -34,6 +34,9 @@ class DeviceListActivity : AppCompatActivity() {
     private lateinit var tvStatus: TextView
     private lateinit var tvEmpty: TextView
     private lateinit var btnRetry: Button
+    // v1.2.3: a rapid double tap used to launch two LiveActivity instances —
+    // six RTMP pulls at once, which could stall every player (black screen).
+    private var lastLiveLaunchMs = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -110,13 +113,19 @@ class DeviceListActivity : AppCompatActivity() {
         rv.layoutManager = LinearLayoutManager(this)
         adapter = DeviceAdapter(devices,
             onClick = { d ->
-                if (!d.isOnline) {
-                    Toast.makeText(this, "设备离线，仍可尝试打开（以 WS 状态为准）", Toast.LENGTH_SHORT).show()
+                val now = android.os.SystemClock.elapsedRealtime()
+                if (now - lastLiveLaunchMs < 800) {
+                    DebugLog.log("UI", "拦截 800ms 内重复打开直播页")
+                } else {
+                    lastLiveLaunchMs = now
+                    if (!d.isOnline) {
+                        Toast.makeText(this, "设备离线，仍可尝试打开（以 WS 状态为准）", Toast.LENGTH_SHORT).show()
+                    }
+                    val i = Intent(this, LiveActivity::class.java)
+                    i.putExtra("sn", d.sn); i.putExtra("name", d.displayName)
+                    i.putExtra("netType", d.netType)
+                    startActivity(i)
                 }
-                val i = Intent(this, LiveActivity::class.java)
-                i.putExtra("sn", d.sn); i.putExtra("name", d.displayName)
-                i.putExtra("netType", d.netType)
-                startActivity(i)
             },
             onDetail = { d ->
                 val i = Intent(this, DeviceDetailActivity::class.java)

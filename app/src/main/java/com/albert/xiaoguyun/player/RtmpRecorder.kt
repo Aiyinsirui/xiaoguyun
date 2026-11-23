@@ -1,5 +1,6 @@
 package com.albert.xiaoguyun.player
 
+import com.albert.xiaoguyun.DebugLog
 import com.albert.xiaoguyun.net.RtmpPublisher
 import java.io.BufferedOutputStream
 import java.io.File
@@ -53,11 +54,28 @@ class RtmpRecorder(private val url: String, private val outFile: File) {
         private set
     @Volatile var mediaMessages = 0
         private set
+    // All RTMP messages seen (including protocol/control), for diagnostics.
+    @Volatile private var totalMessages = 0
     val isRecording: Boolean get() = running.get()
+
+    // Canonical RTMP split, computed in start(): app is the FIRST path
+    // segment ("video"); the play name is everything after it
+    // ("<sn>/1"). RtmpPublisher.parse splits off only the last segment,
+    // which the relay tolerates for publish but rejects for play with
+    // NetStream.Play.StreamNotFound (details showed "<sn>/1/1").
+    private var connectApp = ""
+    private var tcUrl = ""
+    private var playName = ""
 
     /** Connects + handshakes + plays. Returns true when recording started. */
     fun start(): Boolean {
         val parsed = RtmpPublisher.parse(url) ?: run { lastError = "RTMP 地址解析失败"; return false }
+        val segs = url.removePrefix("rtmp://").substringAfter('/', "")
+            .split('/').filter { it.isNotEmpty() }
+        if (segs.size < 2) { lastError = "RTMP 路径段不足"; return false }
+        connectApp = segs.first()
+        playName = segs.drop(1).joinToString("/")
+        tcUrl = "rtmp://${parsed.host}:${parsed.port}/$connectApp"
         return try {
             val sock = Socket()
             sock.soTimeout = 0 // blocking reads; stop() closes the socket
@@ -67,7 +85,7 @@ class RtmpRecorder(private val url: String, private val outFile: File) {
             running.set(true)
             handshake(sock.getInputStream())
             startReader(sock.getInputStream())
-            sendConnect(parsed)
+            sendConnect()
             if (!connectLatch.await(5, TimeUnit.SECONDS) || !connectOk) {
                 lastError = "RTMP connect 无响应"; stop(); return false
             }
@@ -75,7 +93,8 @@ class RtmpRecorder(private val url: String, private val outFile: File) {
             if (!createStreamLatch.await(5, TimeUnit.SECONDS) || streamId == 0) {
                 lastError = "RTMP createStream 无响应"; stop(); return false
             }
-            sendPlay(parsed)
+            sendPlay()
+            DebugLog.log("REC", "play 已发送 app=$connectApp name=$playName streamId=$streamId，等待媒体消息…")
             true
         } catch (e: Exception) {
             lastError = e.message ?: "RTMP 连接失败"
@@ -86,6 +105,7 @@ class RtmpRecorder(private val url: String, private val outFile: File) {
 
     /** Stops recording and returns the file (null if nothing was written). */
     fun stop(): File? {
+        DebugLog.log("REC", "停止录像 媒体消息数=$mediaMessages 字节=$bytesWritten 头已写=$headerWritten")
         running.set(false)
         try { socket?.close() } catch (_: Exception) {}
         try { readerThread?.join(1000) } catch (_: Exception) {}
@@ -212,11 +232,11 @@ class RtmpRecorder(private val url: String, private val outFile: File) {
         }
     }
 
-    private fun sendConnect(p: RtmpPublisher.ParsedUrl) {
+    private fun sendConnect() {
         val obj = amfObject(listOf(
-            "app" to amfString(p.app),
+            "app" to amfString(connectApp),
             "flashVer" to amfString("FMLE/3.0 (compatible; XiaoGuYun)"),
-            "tcUrl" to amfString(url),
+            "tcUrl" to amfString(tcUrl),
             "fpad" to amfBool(false),
             "capabilities" to amfNumber(15.0),
             "audioCodecs" to amfNumber(3575.0),
@@ -229,11 +249,11 @@ class RtmpRecorder(private val url: String, private val outFile: File) {
         invoke(3, 1.0, amfString("createStream"), amfNumber(1.0), amfNull())
     }
 
-    /** play(streamKey, start=-2 live, duration=-1, reset=true). */
-    private fun sendPlay(p: RtmpPublisher.ParsedUrl) {
+    /** play(playName, start=-2 live, duration=-1, reset=true). */
+    private fun sendPlay() {
         val baos = java.io.ByteArrayOutputStream()
         baos.write(amfString("play")); baos.write(amfNumber(0.0)); baos.write(amfNull())
-        baos.write(amfString(p.streamKey))
+        baos.write(amfString(playName))
         baos.write(amfNumber(-2.0)); baos.write(amfNumber(-1.0)); baos.write(amfBool(true))
         synchronized(this) {
             writeChunk(0, 8, 0, 0x14, streamId, baos.toByteArray())
@@ -348,10 +368,17 @@ class RtmpRecorder(private val url: String, private val outFile: File) {
                         val type = pendingType[csid] ?: msgType
                         val ts = pendingTs[csid] ?: timestamp
                         pending.remove(csid); pendingLen.remove(csid); pendingType.remove(csid); pendingTs.remove(csid)
+                        totalMessages++
+                        if (totalMessages <= 40 || type == 0x14) {
+                            DebugLog.log("REC", "收到消息 type=0x${type.toString(16)} len=${payload.size} ts=$ts csid=$csid")
+                        }
                         handleServerMessage(type, ts, payload)
                     }
                 }
-            } catch (_: Exception) { /* socket closed */ }
+            } catch (e: Exception) {
+                DebugLog.log("REC", "读取线程退出：${e.javaClass.simpleName} ${e.message}")
+            }
+            DebugLog.log("REC", "读取线程结束 running=${running.get()} 媒体消息=$mediaMessages")
         }, "rtmp-recorder").apply { isDaemon = true; start() }
     }
 
@@ -373,17 +400,22 @@ class RtmpRecorder(private val url: String, private val outFile: File) {
                 }
             }
             0x08, 0x09, 0x12 -> writeMedia(type, timestamp, payload) // audio / video / script data
-            0x14 -> { // AMF0 command: _result
+            0x14 -> { // AMF0 command: _result / onStatus / ...
                 try {
                     val reader = AmfReader(payload)
                     val cmd = reader.readStringOrNull()
+                    // onStatus carries an AMF object with level/code/description.
+                    if (cmd == "onStatus" || cmd == "onMetaData" || cmd == "_error") {
+                        DebugLog.log("REC", "AMF 命令: $cmd payload=${payload.size}B 文本=${extractAmfStrings(payload)}")
+                    }
                     if (cmd == "_result") {
                         val txn = reader.readNumberOrNull()
                         reader.readValue()
-                        if (txn == 0.0) { connectOk = true; connectLatch.countDown() }
+                        if (txn == 0.0) { connectOk = true; connectLatch.countDown(); DebugLog.log("REC", "connect _result 收到") }
                         else if (txn == 1.0) {
                             val info = reader.readNumberOrNull()
                             if (info != null) streamId = info.toInt()
+                            DebugLog.log("REC", "createStream _result streamId=$streamId")
                             createStreamLatch.countDown()
                         }
                     } else if (cmd == "_error") {
@@ -393,6 +425,26 @@ class RtmpRecorder(private val url: String, private val outFile: File) {
                 } catch (_: Exception) { /* ignore malformed command */ }
             }
         }
+    }
+
+    /** Diagnostic only: pulls readable AMF0 string runs out of a payload. */
+    private fun extractAmfStrings(data: ByteArray): String {
+        val out = StringBuilder()
+        var i = 0
+        while (i + 2 < data.size) {
+            val len = ((data[i].toInt() and 0xFF) shl 8) or (data[i + 1].toInt() and 0xFF)
+            if (len in 2..64 && i + 2 + len <= data.size) {
+                val s = String(data, i + 2, len, Charsets.UTF_8)
+                if (s.all { it.code in 0x20..0x7E }) {
+                    if (out.isNotEmpty()) out.append(" | ")
+                    out.append(s)
+                    i += 2 + len
+                    continue
+                }
+            }
+            i++
+        }
+        return out.toString().ifEmpty { "(无字符串)" }
     }
 
     /** Minimal AMF0 reader: only what _result parsing needs. */

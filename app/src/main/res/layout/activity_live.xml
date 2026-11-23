@@ -20,11 +20,14 @@
             <TextView android:id="@+id/tvLiveStatus" android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/connecting" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="14dp" android:text="画面与声音"
+                android:textColor="#888888" android:textSize="13sp" android:textStyle="bold" />
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:orientation="horizontal" android:layout_marginTop="12dp">
+                android:orientation="horizontal" android:layout_marginTop="6dp">
                 <Button android:id="@+id/btnDefinition" android:layout_width="0dp"
                     android:layout_height="wrap_content" android:layout_weight="1"
-                    android:text="高清" />
+                    android:text="流畅" />
                 <Button android:id="@+id/btnMute" android:layout_width="0dp"
                     android:layout_height="wrap_content" android:layout_weight="1"
                     android:text="@string/mute" />
@@ -35,8 +38,11 @@
                     android:layout_height="wrap_content" android:layout_weight="1"
                     android:text="设备详情" />
             </LinearLayout>
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="14dp" android:text="抓拍与录像"
+                android:textColor="#888888" android:textSize="13sp" android:textStyle="bold" />
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:orientation="horizontal" android:layout_marginTop="8dp">
+                android:orientation="horizontal" android:layout_marginTop="6dp">
                 <Button android:id="@+id/btnSnapshot" android:layout_width="0dp"
                     android:layout_height="wrap_content" android:layout_weight="1"
                     android:text="抓拍" />
@@ -51,9 +57,13 @@
                     android:text="全屏" />
             </LinearLayout>
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:layout_marginTop="16dp" android:text="云台：点按转一下，松开即停；按住连续转；也可滑动画面；点复位回初始位置" />
+                android:layout_marginTop="14dp" android:text="云台控制"
+                android:textColor="#888888" android:textSize="13sp" android:textStyle="bold" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="4dp" android:text="点按转一下，按住连续转；也可以直接在画面上滑动"
+                android:textColor="#999999" android:textSize="12sp" />
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:orientation="horizontal" android:layout_marginTop="8dp">
+                android:orientation="horizontal" android:layout_marginTop="6dp">
                 <Button android:id="@+id/btnUp" android:layout_width="0dp" android:layout_height="wrap_content"
                     android:layout_weight="1" android:text="@string/ptz_up" />
                 <Button android:id="@+id/btnDown" android:layout_width="0dp" android:layout_height="wrap_content"
@@ -69,21 +79,25 @@
             <Button android:id="@+id/btnTrack" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="8dp"
                 android:text="智能追踪：查询中…" />
+            <Button android:id="@+id/btnFillLight" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="8dp"
+                android:text="补光灯：查询中…" />
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="云台位置由摄像头本身保持，退出重进不会复位（除非点复位）。预置位/巡航：原 App 静态代码中无对应命令码，未提供入口。" />
+                android:layout_marginTop="16dp" android:text="语音对讲"
+                android:textColor="#888888" android:textSize="13sp" android:textStyle="bold" />
             <Button android:id="@+id/btnIntercom" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:layout_marginTop="12dp"
+                android:layout_height="wrap_content" android:layout_marginTop="6dp"
+                android:minHeight="56dp" android:textStyle="bold"
                 android:text="@string/intercom" />
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="对讲：先发 code 26 volplay 打开，按住说话（8kHz 麦克风 → G.711A → RTMP 推流到直播地址末位改 3 的地址），松开关闭并调 closepath。回声处理：VOICE_COMMUNICATION 采集 + MODE_IN_COMMUNICATION + 通话时本地静音。音频上行链路未实测，若对方听不到，先确认直播已跑通。" />
+                android:layout_marginTop="4dp" android:text="按住按钮说话，松开结束；对讲时自动静音直播声音以避免回声"
+                android:textColor="#999999" android:textSize="12sp" />
             <Button android:id="@+id/btnRetryLive" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:layout_marginTop="12dp"
+                android:layout_height="wrap_content" android:layout_marginTop="16dp"
                 android:text="@string/retry" />
             <Button android:id="@+id/btnCopyAddr" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:layout_marginTop="12dp"
-                android:text="复制直播地址（诊断编码用）" />
+                android:layout_height="wrap_content" android:layout_marginTop="8dp"
+                android:text="复制直播地址（诊断用）" />
         </LinearLayout>
     </ScrollView>
 </LinearLayout>
