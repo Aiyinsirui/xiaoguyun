@@ -5,7 +5,7 @@
         android:orientation="vertical" android:padding="16dp">
         <TextView android:id="@+id/tvTitle" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:textSize="20sp" android:textStyle="bold" />
-        <SurfaceView android:id="@+id/surface" android:layout_width="match_parent"
+        <TextureView android:id="@+id/surface" android:layout_width="match_parent"
             android:layout_height="220dp" android:layout_marginTop="12dp"
             android:background="#000000" />
         <TextView android:id="@+id/tvLiveStatus" android:layout_width="match_parent"

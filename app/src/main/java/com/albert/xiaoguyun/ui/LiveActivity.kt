@@ -10,7 +10,7 @@ import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
 import android.view.MotionEvent
-import android.view.SurfaceView
+import android.view.TextureView
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -58,8 +58,7 @@ class LiveActivity : AppCompatActivity() {
         setContentView(R.layout.activity_live)
         findViewById<TextView>(R.id.tvTitle).text = name
         tvStatus = findViewById(R.id.tvLiveStatus)
-        val surface = findViewById<SurfaceView>(R.id.surface)
-        player = ExoRtmpPlayer(this, surface)
+        player = ExoRtmpPlayer(this, findViewById<TextureView>(R.id.surface))
         // v1.1.6: the player is ExoPlayer + FlvEnhancedExtractor now; if it
         // still errors on this stream, the sub-stream is often a different
         // codec, so on the first playback error automatically retry with
@@ -186,7 +185,7 @@ class LiveActivity : AppCompatActivity() {
                 }
                 val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
                 val dir = File(getExternalFilesDir(Environment.DIRECTORY_MOVIES), "xiaoguyun")
-                val out = File(dir, "live_${sn}_$stamp.mp4")
+                val out = File(dir, "live_${sn}_$stamp.ts")
                 if (recorder.start(addr, out)) {
                     btnRecord.text = "停止录像"
                     Toast.makeText(this, "正在录像：${out.absolutePath}", Toast.LENGTH_SHORT).show()
@@ -317,10 +316,10 @@ class LiveActivity : AppCompatActivity() {
     }
 
     private fun takeSnapshot() {
-        player.snapshot(this) { bitmap ->
+        player.snapshot { bitmap ->
             runOnUiThread {
                 if (bitmap == null) {
-                    Toast.makeText(this, "抓拍失败（该设备 PixelCopy 可能不支持硬解 Surface）", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "抓拍失败（当前无画面可截）", Toast.LENGTH_LONG).show()
                     return@runOnUiThread
                 }
                 saveSnapshot(bitmap)

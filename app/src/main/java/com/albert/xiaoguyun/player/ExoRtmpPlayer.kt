@@ -1,16 +1,13 @@
 package com.albert.xiaoguyun.player
 
-import android.app.Activity
 import android.content.Context
 import android.graphics.Bitmap
-import android.os.Handler
-import android.os.Looper
-import android.view.PixelCopy
-import android.view.SurfaceView
+import android.view.TextureView
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.rtmp.RtmpDataSource
@@ -20,22 +17,30 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 /**
  * Live + local-file player on Media3 ExoPlayer.
  *
- * v1.1.6 replaces libVLC for playback: VLC 3.x (and stock ExoPlayer) cannot
+ * v1.1.6 replaced libVLC for playback: VLC 3.x (and stock ExoPlayer) cannot
  * decode this camera's stream — both definitions fail with EncounteredError
  * while stream data is flowing. The original app plays it with its own
  * FFmpeg native player. This player keeps ExoPlayer's MediaCodec rendering
  * but feeds RTMP through [FlvEnhancedExtractor], which handles legacy
- * AVC/HEVC and enhanced RTMP ('avc1'/'hvc1' FourCC) FLV tags.
+ * AVC/HEVC and enhanced RTMP ('avc1'/'hvc1') FLV tags.
+ *
+ * v1.1.7 renders into a TextureView (not SurfaceView): the live page lives
+ * inside a ScrollView, and a SurfaceView there shows black on this device
+ * even though frames are decoded (a snapshot via PixelCopy proved the
+ * surface had frames). TextureView composites inside the view hierarchy,
+ * so it scrolls and displays correctly. It is also resized to the video's
+ * real aspect ratio: this camera sends both lenses as one tall frame
+ * (two stacked pictures), which a fixed 220dp view squashed flat.
  *
  * Local files use the default extractors. Audio is video-only for RTMP:
  * the camera's audio is G.711, which Media3 cannot decode from FLV.
  * Local recording still uses [VlcRecorder] (libVLC sout), unchanged.
  */
 @OptIn(UnstableApi::class)
-class ExoRtmpPlayer(context: Context, private val surfaceView: SurfaceView) {
+class ExoRtmpPlayer(context: Context, private val textureView: TextureView) {
     private val appContext = context.applicationContext
     private val player: ExoPlayer = ExoPlayer.Builder(appContext).build().apply {
-        setVideoSurfaceView(surfaceView)
+        setVideoTextureView(textureView)
     }
 
     var onError: (() -> Unit)? = null
@@ -52,7 +57,37 @@ class ExoRtmpPlayer(context: Context, private val surfaceView: SurfaceView) {
             override fun onPlayerError(error: PlaybackException) {
                 onError?.invoke()
             }
+
+            override fun onVideoSizeChanged(videoSize: VideoSize) {
+                fitTextureToVideo(videoSize)
+            }
         })
+    }
+
+    /**
+     * Resizes the TextureView to the video's aspect ratio so the picture
+     * is not stretched. The dual-lens frame is taller than 16:9, so the
+     * view grows; it is capped at 65% of the screen height.
+     */
+    private fun fitTextureToVideo(videoSize: VideoSize) {
+        val w = videoSize.width
+        val h = videoSize.height
+        if (w <= 0 || h <= 0) return
+        val ratio = if (videoSize.pixelWidthHeightRatio > 0f) {
+            videoSize.pixelWidthHeightRatio.toDouble()
+        } else 1.0
+        textureView.post {
+            val viewWidth = textureView.width.takeIf { it > 0 }
+                ?: textureView.context.resources.displayMetrics.widthPixels
+            val wantHeight = (viewWidth * (h / w.toDouble()) / ratio).toInt()
+            val maxHeight = (textureView.context.resources.displayMetrics.heightPixels * 0.65).toInt()
+            val height = wantHeight.coerceIn(220, maxHeight)
+            val params = textureView.layoutParams
+            if (params != null && params.height != height) {
+                params.height = height
+                textureView.layoutParams = params
+            }
+        }
     }
 
     fun play(url: String) {
@@ -84,24 +119,10 @@ class ExoRtmpPlayer(context: Context, private val surfaceView: SurfaceView) {
     fun pause() { try { player.pause() } catch (_: Exception) {} }
     fun resume() { try { player.play() } catch (_: Exception) {} }
 
-    /**
-     * Snapshot of the current frame via PixelCopy from the SurfaceView.
-     * Same caveat as the old VLC version: PixelCopy on a hardware-decoded
-     * SurfaceView works on most devices but is not guaranteed on all.
-     */
-    fun snapshot(activity: Activity, onResult: (Bitmap?) -> Unit) {
+    /** Snapshot of the current frame from the TextureView (correct aspect). */
+    fun snapshot(onResult: (Bitmap?) -> Unit) {
         try {
-            val w = surfaceView.width
-            val h = surfaceView.height
-            if (w <= 0 || h <= 0) { onResult(null); return }
-            val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-            PixelCopy.request(
-                surfaceView, bitmap,
-                { result ->
-                    onResult(if (result == PixelCopy.SUCCESS) bitmap else null)
-                },
-                Handler(Looper.getMainLooper()),
-            )
+            onResult(textureView.bitmap)
         } catch (_: Exception) { onResult(null) }
     }
 
