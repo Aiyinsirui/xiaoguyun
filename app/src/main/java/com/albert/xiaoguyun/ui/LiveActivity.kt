@@ -28,6 +28,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.albert.xiaoguyun.BuildConfig
 import com.albert.xiaoguyun.DebugLog
 import com.albert.xiaoguyun.R
 import com.albert.xiaoguyun.audio.MicSelfTest
@@ -461,11 +462,13 @@ class LiveActivity : AppCompatActivity() {
         // Debug-only ADB probe (MicSelfTest). EXPORTED is required because
         // `am broadcast` runs as the shell uid, not the app uid, so a
         // NOT_EXPORTED receiver rejects it. The receiver only measures mic
-        // levels and writes logs; remove this whole block before release.
-        ContextCompat.registerReceiver(
-            this, micTestReceiver, IntentFilter(MicSelfTest.ACTION),
-            ContextCompat.RECEIVER_EXPORTED,
-        )
+        // levels and writes logs, so it is excluded from release builds.
+        if (BuildConfig.DEBUG) {
+            ContextCompat.registerReceiver(
+                this, micTestReceiver, IntentFilter(MicSelfTest.ACTION),
+                ContextCompat.RECEIVER_EXPORTED,
+            )
+        }
         ws.connect()
     }
 

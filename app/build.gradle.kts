@@ -48,7 +48,19 @@ android {
         getByName("release") {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // v1.2.4: sign release with the same optional handover team key as
+            // debug, so release APKs can cover-install the tablet build and are
+            // directly installable. Absent local.properties (CI/fresh clone)
+            // leaves release unsigned as before; no key material is in the repo.
+            if (handoverKeystore != null) {
+                signingConfig = signingConfigs.getByName("handover")
+            }
         }
+    }
+    buildFeatures {
+        // v1.2.4: needed for BuildConfig.DEBUG, which gates the ADB-only
+        // microphone self-test receiver out of release builds.
+        buildConfig = true
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

@@ -27,8 +27,12 @@
 - 当前版本：`versionCode=16 / versionName=1.2.4`（app/build.gradle.kts）。
 - 工作分支：`v1.2.3-intercom-blackscreen-fix`（历史）→ 本轮新建 **`v1.2.4-led-recording-ui`**。
 - main 分支只保留稳定版，**禁止**直接推 main、禁止自行建 Release。
-- 签名：debug 包用仓库外 keystore 自动签名（local.properties 中配置，该文件已 gitignore），
-  可直接覆盖装机。
+- 签名：debug 与 release 均用仓库外 keystore 自动签名（local.properties 中配置，该文件已 gitignore），
+  两者同一证书（SHA-256 `6f4115…a658b0`，DN `CN=Android Debug`），可互相覆盖安装；
+  fresh clone / CI 无 local.properties 时 release 保持未签名，仓库内无任何密钥材料。
+- release 签名配置位于 `app/build.gradle.kts` 的 `buildTypes.release`，复用 `signingConfigs.handover`；
+  同时开启 `buildFeatures.buildConfig = true`，用于 `BuildConfig.DEBUG` 门控
+  （MicSelfTest 的 ADB 诊断广播只在 debug 包注册）。
 
 ---
 
@@ -181,8 +185,10 @@
    若原始峰值仍 <300：先查 `TALK 录音已启动 实际路由=` 是否为底部主麦，再考虑
    `audio/MicSelfTest.kt` 广播自检（adb am broadcast -a com.albert.xiaoguyun.MIC_SELF_TEST
    -p com.albert.xiaoguyun，约 40 秒，结果写同一 debug.log）。
-2. **发布前移除 MicSelfTest**：LiveActivity 中 RECEIVER_EXPORTED 广播注册（adb 诊断用），
-   正式版应删除注册与 import，MicSelfTest.kt 可保留或一并删除。
+2. ~~发布前移除 MicSelfTest~~ **已完成（2026-11-24）**：改为 `if (BuildConfig.DEBUG)` 门控，
+   release 包不注册该广播；debug 包保留，因为待办 1 的人声验证可能还要用它。
+   `MicSelfTest.kt` 与 import 仍在，属 debug-only 资产，不再影响正式包。
+   后续若要彻底移除，删注册块 + import + 该文件即可。
 3. **补光灯 5 分钟自动关未做长等实测**：逻辑与原版同参数（300000ms），代码路径已核验；
    协议开关与回包已真机闭环（见 3.4）。后续可顺手观察一次自动关。
 4. **增强 FLV 兼容性**：录像视频 tag 为 0x1C 增强 FLV（摄像头推流即如此），旧播放器可能不认；
@@ -205,6 +211,9 @@
   platform-tools/adb 的具体路径见本机 `.toolchain/` 与 local.properties（均在仓库外或 gitignore）。
 - 构建：设置 `JAVA_HOME`、`ANDROID_SDK_ROOT` 后 `gradle.bat assembleDebug --console=plain`；
   产物 `app/build/outputs/apk/debug/app-debug.apk`（*.apk 已 gitignore，不会入库）。
+- Release 构建：`gradle.bat assembleRelease --console=plain`；产物
+  `app/build/outputs/apk/release/app-release.apk`（v1.2.4 实测 6,105,805 字节 / 6.1 MB）。
+  签名核验：`apksigner verify --print-certs app-release.apk`（本机 build-tools 36.0.0）。
 - 装机：`adb install -r`；App 内日志：`/sdcard/Android/data/com.albert.xiaoguyun/files/debug.log`
   （HyperOS 屏蔽第三方 logcat，必须拉此文件）。
 - 系统级诊断：`adb shell dumpsys media.audio_flinger`（只看 Standby: no 的线程）。
@@ -243,7 +252,19 @@
 - 对讲机械链路（23:08，模拟按住 7 秒）：路由=底部主麦、Publish.Start 确认、326 帧/7.1 秒、
   停止干净；环境噪声原始峰值 74~127、RMS 13~35（低于 gateRms=120 不放大，符合设计）；
   一次瞬时峰值 541 被 AGC 放大到 4240（约 7.8 倍），增益链有效。**仍缺真人说话端到端确认（见待办 1）。**
-- 全部构建 BUILD SUCCESSFUL；最新 APK 已安装平板。
+- 全部构建 BUILD SUCCESSFUL；debug APK 已安装平板并完成上述回归。
+
+### Release 打包（2026-11-24 01:25）
+- 变更：`buildTypes.release` 复用 handover 签名（此前 release 无签名配置，只能产出 unsigned 包）；
+  开启 `buildFeatures.buildConfig = true`；MicSelfTest 诊断广播改为 `if (BuildConfig.DEBUG)` 门控，
+  **release 包不再注册该导出广播**（原注释即要求发布前移除）。
+- `assembleRelease` + `assembleDebug` 均 BUILD SUCCESSFUL；`app-release.apk` 6,105,805 字节。
+- `apksigner verify --print-certs` 通过：签名者证书 `CN=Android Debug`，
+  SHA-256 `6f411583767986c50636fe1903e8da691ac4bc80f06f1133746787bbf3a658b0`，
+  与 debug 包同一证书 → 可覆盖安装平板现有版本。
+- **真机未验证（诚实标注）**：打包时平板 adb 已离线（`adb devices` 空、`adb mdns services` 无发现），
+  release 包本轮仅完成构建 + 签名核验；下次设备可用时执行
+  `adb install -r app-release.apk` 做一次冒烟（重点看三画面出流、补光灯、录像）。
 
 ### 推送记录
 - 分支 `v1.2.4-led-recording-ui`，不推 main、不建 Release；远端与本机该分支保持同步，

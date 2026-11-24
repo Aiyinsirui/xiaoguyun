@@ -6,3 +6,8 @@ build/
 app/build/
 *.apk
 *.aab
+# v1.2.4: the built release APK is delivered through the branch (no GitHub
+# Release is created), so only dist/ is whitelisted. Local build output stays
+# ignored.
+!dist/
+!dist/*.apk
