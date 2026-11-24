@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lexend Variable (Google Fonts, ofl/lexend). Single variable file;
+     the default instance is Regular 400. Titles use
+     fontVariationSettings "'wght' 600" (API 26+; ignored below).
+     Latin + digits render in Lexend; CJK falls back to the system font. -->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <font
+        android:fontStyle="normal"
+        android:fontWeight="400"
+        android:font="@font/lexend_variable"
+        app:font="@font/lexend_variable" />
+</font-family>

@@ -451,9 +451,10 @@ class DeviceListActivity : AppCompatActivity() {
             val shareBadge: TextView = v.findViewById(R.id.tvShareBadge)
             val battery: TextView = v.findViewById(R.id.tvBattery)
             val btnDetail: Button = v.findViewById(R.id.btnDetail)
-            // v1.2.6: last viewed frame thumbnails (gun / ball).
-            val thumb1: android.widget.ImageView = v.findViewById(R.id.ivThumb1)
-            val thumb2: android.widget.ImageView = v.findViewById(R.id.ivThumb2)
+            // v1.2.7: three channel entries (pano / close-up / dual),
+            // built in code at a fixed 16:9 per entry — never stretched
+            // to fill the card.
+            val channelRows: android.widget.LinearLayout = v.findViewById(R.id.channelRows)
         }
         override fun onCreateViewHolder(p: ViewGroup, t: Int): Holder =
             Holder(LayoutInflater.from(p.context).inflate(R.layout.item_device, p, false))
@@ -474,17 +475,77 @@ class DeviceListActivity : AppCompatActivity() {
             // owned=0：别人分享给本账号的设备（列表接口默认只拉 owned=1，平时不出现）。
             h.shareBadge.visibility = if (d.owned == 0) View.VISIBLE else View.GONE
             h.battery.text = if (d.bat >= 0) "电量 ${d.bat}%" else ""
-            // v1.2.6: last viewed frame (TP-Link / Daguyun show the last
-            // frame on the home card instead of a black box). Always
-            // clear first so a recycled row never shows another
-            // device's frame, then load this SN's saved halves; when
-            // nothing was ever saved the black placeholder stays.
-            h.thumb1.setImageBitmap(null)
-            h.thumb2.setImageBitmap(null)
-            com.albert.xiaoguyun.util.LastFrameStore.loadTop(h.itemView.context, d.sn)?.let { h.thumb1.setImageBitmap(it) }
-            com.albert.xiaoguyun.util.LastFrameStore.loadBottom(h.itemView.context, d.sn)?.let { h.thumb2.setImageBitmap(it) }
+            // v1.2.7: three 16:9 channel entries (last viewed frames —
+            // TP-Link / Daguyun show the last frame on the home card
+            // instead of a black box). Always clear first so a recycled
+            // row never shows another device's frame; when nothing was
+            // ever saved the black placeholder stays. Built in code from
+            // the measured screen width (see buildChannelEntries).
+            buildChannelEntries(h, d)
             h.itemView.setOnClickListener { onClick(d) }
             h.btnDetail.setOnClickListener { onDetail(d) }
+        }
+
+        /** v1.2.7: three 16:9 channel entries per card. Column count is
+         * derived from the screen width (each entry at least ~160dp
+         * wide; 3 columns on wide screens, 2 on narrow ones, wrapping
+         * to a second row). Widths are computed synchronously from
+         * displayMetrics — no post-measure, so no flicker. The row
+         * width is screen minus the home tab's 24dp padding on each
+         * side and the card's 16dp padding on each side (80dp), plus a
+         * 4dp safety margin so entries can never overflow the card;
+         * any leftover space is simply left empty, never stretched.
+         * Tapping an entry opens LiveActivity in that channel's mode;
+         * tapping the card body still opens the dual view. */
+        private fun buildChannelEntries(h: Holder, d: DeviceInfo) {
+            val ctx = h.itemView.context
+            h.channelRows.removeAllViews()
+            val density = ctx.resources.displayMetrics.density
+            fun dp(v: Int): Int = (v * density).toInt()
+            val rowWidthPx = (ctx.resources.displayMetrics.widthPixels - dp(84))
+                .coerceAtLeast(dp(320))
+            val cols = (rowWidthPx / dp(160)).coerceIn(2, 4)
+            val gapPx = dp(8)
+            val entryW = (rowWidthPx - gapPx * (cols - 1)) / cols
+            val entryH = entryW * 9 / 16
+            val entries = listOf(
+                Triple(R.string.channel_pano, LiveActivity.LiveMode.TOP,
+                    com.albert.xiaoguyun.util.LastFrameStore.loadTop(ctx, d.sn)),
+                Triple(R.string.channel_closeup, LiveActivity.LiveMode.BOTTOM,
+                    com.albert.xiaoguyun.util.LastFrameStore.loadBottom(ctx, d.sn)),
+                Triple(R.string.channel_dual, LiveActivity.LiveMode.FULL,
+                    com.albert.xiaoguyun.util.LastFrameStore.loadFull(ctx, d.sn)),
+            )
+            var row: android.widget.LinearLayout? = null
+            entries.forEachIndexed { index, (labelRes, mode, bmp) ->
+                if (index % cols == 0) {
+                    row = android.widget.LinearLayout(ctx).apply {
+                        orientation = android.widget.LinearLayout.HORIZONTAL
+                        layoutParams = android.widget.LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ).also { if (index > 0) it.topMargin = gapPx }
+                    }
+                    h.channelRows.addView(row)
+                }
+                val item = LayoutInflater.from(ctx)
+                    .inflate(R.layout.item_channel_entry, row, false)
+                val params = android.widget.LinearLayout.LayoutParams(entryW, entryH)
+                if (index % cols > 0) params.leftMargin = gapPx
+                item.layoutParams = params
+                val iv = item.findViewById<android.widget.ImageView>(R.id.ivThumb)
+                iv.setImageBitmap(null)
+                bmp?.let { iv.setImageBitmap(it) }
+                item.findViewById<TextView>(R.id.tvLabel).setText(labelRes)
+                item.setOnClickListener {
+                    val it2 = Intent(ctx, LiveActivity::class.java)
+                    it2.putExtra("sn", d.sn)
+                    it2.putExtra("name", d.displayName)
+                    it2.putExtra("mode", mode.name)
+                    ctx.startActivity(it2)
+                }
+                row!!.addView(item)
+            }
         }
     }
 }

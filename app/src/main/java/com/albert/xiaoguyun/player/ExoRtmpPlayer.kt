@@ -5,8 +5,10 @@ import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.view.Gravity
 import android.view.TextureView
+import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import com.albert.xiaoguyun.DebugLog
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -45,15 +47,16 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
  * v1.2.2: back to TextureView — created programmatically, WITHOUT a
  * background (that was the only thing that crashed v1.1.7; a
  * background-less TextureView is safe, and v1.2.0's own comment already
- * said so). TextureView is needed for the three-pane view: the camera is
+ * said so). TextureView is needed for the crop views: the camera is
  * a three-video device (SN char 3), but /0 and /2 do NOT exist as RTMP
  * streams (probed 2026-11-23 while the user was on the live page) — the
  * original's three panes are three CROPS of the one 640x720 combined
  * frame (full + top half = gun lens + bottom half = ball lens). A
- * TextureView crop is a transform matrix (2x vertical scale, pivot at
- * the top/bottom edge); a SurfaceView cannot be cropped. The big view
- * and the two PiP views are each their own player on the same RTMP URL
- * (PiPs are muted — only the big view plays sound).
+ * TextureView crop is a transform matrix; a SurfaceView cannot be
+ * cropped. v1.2.7: only ONE player now (the channel strip shows
+ * LastFrameStore snapshots, not live players — three concurrent RTMP
+ * pulls were a black-screen root cause, and the PiP panes rendered the
+ * full frame squished / black in v1.2.6).
  *
  * v1.2.2 audio: [FlvEnhancedExtractor] now decodes the camera's G.711
  * A-law audio to PCM, so live has sound (before that live was
@@ -65,8 +68,6 @@ class ExoRtmpPlayer(
     context: Context,
     private val textureView: TextureView,
     private val container: ViewGroup,
-    /** PiP views have a fixed size: fit only the crop transform, never resize. */
-    private val fixedSize: Boolean = false,
 ) {
     private val appContext = context.applicationContext
     private val player: ExoPlayer = ExoPlayer.Builder(appContext).build().apply {
@@ -93,6 +94,11 @@ class ExoRtmpPlayer(
     private var lastUrl: String? = null
     private val instanceId = System.identityHashCode(this)
     private var lastVideoSize: VideoSize? = null
+    /** v1.2.7: the crop matrix is computed from the EXPLICIT target
+     * size (see fitViewToVideo), never from a just-read view size —
+     * so it stays valid across resizes; the layout listener below
+     * only re-applies this stored matrix. */
+    private var lastMatrix: Matrix? = null
 
     /** Re-run the aspect fit (e.g. after a fullscreen toggle changes the container). */
     fun refit() {
@@ -106,13 +112,25 @@ class ExoRtmpPlayer(
         } catch (_: Exception) { -1 }
 
     init {
-        // v1.2.6: re-apply the crop transform whenever the view is laid
-        // out at a new size (e.g. after fitViewToVideo resized it). The
-        // transform is computed from the view's CURRENT size, so a
-        // resize that lands after the transform was set can no longer
-        // leave a stale pivot behind (the v1.2.5 BOTTOM-crop race).
+        // v1.2.7: the crop matrix is derived from the explicit target
+        // size (see fitViewToVideo), so a view resize can no longer
+        // leave a stale transform behind. This listener only
+        // re-applies the stored matrix after a resize (e.g. surface
+        // recreation after background) — it never recomputes from a
+        // just-read view size (that was the v1.2.6 race).
         textureView.addOnLayoutChangeListener { _, l, t, r, b, ol, ot, orr, ob ->
-            if (r - l != orr - ol || b - t != ob - ot) applyCrop()
+            if (r - l != orr - ol || b - t != ob - ot) {
+                lastMatrix?.let { textureView.setTransform(it) }
+            }
+        }
+        // v1.2.7: the container is sized by the fit to the video's
+        // aspect; when the space it lives in changes (rotation,
+        // fullscreen toggle, right rail appearing/disappearing) the
+        // fit must re-run against the new space. Re-running is safe:
+        // the fit only writes layout params when the target size
+        // actually differs, so it converges in one extra pass.
+        container.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            lastVideoSize?.let { fitViewToVideo(it) }
         }
         player.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
@@ -152,130 +170,98 @@ class ExoRtmpPlayer(
     }
 
     /**
-     * Letterboxes the TextureView to the video's aspect ratio so the
-     * picture is not stretched. The dual-lens frame is 640x720 (two
-     * stacked 640x360 pictures), taller than 16:9.
-     * Portrait: the view fills the container width and the container
-     * grows to the fitted height (clamped to [220dp, 65% screen]).
-     * Landscape: the container size is fixed by the land layout, so the
-     * view is fitted inside it and centered.
+     * v1.2.7 fit rewrite — the CONTAINER is sized to the video, not
+     * the other way round.
      *
-     * v1.2.1 fix: portrait vs landscape must come from the DEVICE
-     * orientation, NOT from the container's aspect. In portrait the
-     * container is wide-and-short (match_parent x 220dp), so the old
-     * `cw > ch` test took the landscape branch and squeezed the video
-     * into a narrow centred column (the 2026-11-23 screenshot).
+     * Root cause of the v1.2.6 landscape bug (user screenshot 3090:
+     * the gun lens rendered as a narrow ~1000px strip with big black
+     * bars left and right — i.e. the TOP half stretched vertically to
+     * the FULL height): the old code resized the TextureView INSIDE a
+     * fixed-size container and computed the crop matrix from
+     * textureView.width/height read inside a post() — a size that
+     * could still be the pre-resize (FULL) size when the crop had
+     * just changed to TOP. The matrix then fit a 640x360 region into
+     * a 640x720-sized view, and the layout-change listener did not
+     * reliably re-run it with the new size. Pixel measurement of the
+     * screenshot confirmed it: content ~1004px wide in a ~1452px
+     * container, full height — the FULL geometry with TOP content.
      *
-     * v1.2.2: the fit is crop-aware — TOP/BOTTOM show one 640x360 half,
-     * so the view is sized for 640x360 (16:9), and the crop transform
-     * (2x vertical scale) fills it without distortion.
+     * This version sizes the CONTAINER itself to the crop region's
+     * display aspect (16:9 single lens, 8:9 dual) inside the space
+     * the layout gives it, makes the TextureView MATCH_PARENT, and
+     * computes the crop matrix from the EXPLICIT target size — never
+     * from a just-read view size. The transform then only selects
+     * the crop region and scales it to fill: with the container
+     * exactly the display size there is no letterbox at all (no
+     * black bars inside the video box; leftover space is page
+     * background, not black). The matrix also applies the pixel
+     * aspect ratio on X (scaleX = ratio * s, scaleY = s) — the old
+     * code used a uniform scale, which is only correct when
+     * ratio == 1. Single-lens fills the playback width (zero side
+     * bars, at most small top/bottom bars); dual fits 8:9 with no
+     * extra black. Never stretched, never cropped (uniform scale
+     * per axis from the same s; FULL halves stay equal height).
+     *
+     * Available space: the container's parent size. When the parent
+     * is (nearly) full-screen (portrait live page, playback page)
+     * the height is capped at 65% of the screen so the video never
+     * pushes the controls off-screen; a bounded wrapper (live
+     * landscape, right rail) is smaller than the screen and is used
+     * as-is. The fit re-runs on container layout changes (rotation,
+     * fullscreen toggle), converging in one extra pass.
      */
     private fun fitViewToVideo(videoSize: VideoSize) {
         val vw = videoSize.width
         val vh = videoSize.height
         if (vw <= 0 || vh <= 0) return
-        val ratio = videoSize.pixelWidthHeightRatio.takeIf { it > 0f }?.toDouble() ?: 1.0
-        val videoW = vw * ratio
-        // A cropped half is 640x360; the full frame is 640x720.
-        val videoH = if (crop == Crop.FULL) vh.toDouble() else vh / 2.0
-        if (fixedSize) {
-            applyCrop()
-            return
-        }
-        textureView.post {
-            val cw = container.width
-            val ch = container.height
-            if (cw <= 0 || ch <= 0) return@post
-            val landscape =
-                appContext.resources.configuration.orientation ==
-                    android.content.res.Configuration.ORIENTATION_LANDSCAPE
-            val (w, h) = if (landscape) {
-                val scale = minOf(cw / videoW, ch / videoH)
-                (videoW * scale).toInt() to (videoH * scale).toInt()
-            } else {
-                val w = cw
-                val h = (w * videoH / videoW).toInt()
-                    .coerceIn(dp(220), (appContext.resources.displayMetrics.heightPixels * 0.65).toInt())
-                w to h
-            }
-            val lp = (textureView.layoutParams as? FrameLayout.LayoutParams)
-                ?: FrameLayout.LayoutParams(w, h)
-            if (lp.width != w || lp.height != h) {
-                lp.width = w
-                lp.height = h
-                lp.gravity = Gravity.CENTER
-                textureView.layoutParams = lp
-            }
-            if (!landscape) {
-                val clp = container.layoutParams
-                if (clp != null && clp.height != h) {
-                    clp.height = h
-                    container.layoutParams = clp
-                }
-            }
-            applyCrop()
-        }
+        container.post { doFit(vw, vh) }
     }
 
-    /**
-     * Crops the texture to one part of the combined frame AND fits it to
-     * the view without distortion (v1.2.6 rewrite).
-     *
-     * Root cause of the v1.2.5 distortion (round trash can rendered as an
-     * ellipse; FULL top half much smaller than the bottom half): the old
-     * code set a bare 2x-vertical-scale matrix, which REPLACES the
-     * aspect-fit transform — so the texture was stretched to whatever
-     * size the TextureView happened to be, instead of being letterboxed.
-     * Fixed-size panes (MATCH_PARENT in a 16:9-ish pane) were the worst
-     * case, and the BOTTOM pivot read textureView.height from a post()
-     * that could run before fitViewToVideo's resize landed, cropping
-     * the wrong region.
-     *
-     * This version computes one matrix that does both jobs from the
-     * view's CURRENT size and the video's REAL size: it fits the crop
-     * region (FULL = whole 640x720 frame, TOP/BOTTOM = one 640x360
-     * half) into the view preserving aspect (letterbox only, never
-     * stretch), centred. FULL halves stay equal height (uniform scale);
-     * a single lens is true 16:9. Because the matrix is derived from
-     * the current view size, it is correct whether or not the resize
-     * has landed yet — and the layout-change listener re-applies it
-     * once the resize does land, so the old race is gone.
-     */
-    private fun applyCrop() {
-        val vs = lastVideoSize ?: return
-        val vw = vs.width
-        val vh = vs.height
-        if (vw <= 0 || vh <= 0) return
-        val ratio = vs.pixelWidthHeightRatio.takeIf { it > 0f }?.toDouble() ?: 1.0
+    private fun doFit(vw: Int, vh: Int) {
+        val ratio = lastVideoSize?.pixelWidthHeightRatio?.takeIf { it > 0f }?.toDouble() ?: 1.0
         val videoW = vw * ratio
-        val videoH = vh.toDouble()
-        textureView.post {
-            val viewW = textureView.width.toFloat()
-            val viewH = textureView.height.toFloat()
-            if (viewW <= 0 || viewH <= 0) return@post
-            // Crop region inside the texture (top half = gun lens,
-            // bottom half = ball lens, whole frame = both).
-            val (cropTop, cropH) = when (crop) {
-                Crop.FULL -> 0.0 to videoH
-                Crop.TOP -> 0.0 to videoH / 2.0
-                Crop.BOTTOM -> videoH / 2.0 to videoH / 2.0
+        val cropH = if (crop == Crop.FULL) vh.toDouble() else vh / 2.0
+        val cropTop = if (crop == Crop.BOTTOM) vh / 2.0 else 0.0
+        val dm = appContext.resources.displayMetrics
+        val screenW = dm.widthPixels
+        val screenH = dm.heightPixels
+        val parent = container.parent as? View
+        var availW = parent?.width ?: 0
+        var availH = parent?.height ?: 0
+        if (availW <= 0) availW = screenW
+        if (availH <= 0) availH = screenH
+        // Full-screen parent (portrait live page, playback page):
+        // cap the height so the video never pushes the controls
+        // off-screen. A bounded wrapper (live landscape) is used as-is.
+        if (availH >= screenH * 0.95) availH = (screenH * 0.65).toInt()
+        if (availW <= 0 || availH <= 0) return
+        val scale = minOf(availW / videoW, availH / cropH)
+        val targetW = (videoW * scale).toInt()
+        val targetH = (cropH * scale).toInt()
+        if (targetW <= 0 || targetH <= 0) return
+        // Resize the CONTAINER to the video (the TextureView is
+        // MATCH_PARENT inside it), centred in its parent.
+        val lp = container.layoutParams
+        if (lp != null && (lp.width != targetW || lp.height != targetH)) {
+            lp.width = targetW
+            lp.height = targetH
+            when (lp) {
+                is FrameLayout.LayoutParams -> lp.gravity = Gravity.CENTER
+                is LinearLayout.LayoutParams -> lp.gravity = Gravity.CENTER_HORIZONTAL
             }
-            // Fit that region into the view, preserving aspect.
-            val s = minOf(viewW / videoW, viewH / cropH).toFloat()
-            val dispW = (videoW * s).toFloat()
-            val dispH = (cropH * s).toFloat()
-            val ox = (viewW - dispW) / 2f
-            val oy = (viewH - dispH) / 2f
-            // Map texture (x, y) -> view (x*s + ox, (y - cropTop)*s + oy).
-            val m = Matrix()
-            m.setScale(s, s)
-            m.postTranslate(ox, (oy - cropTop * s).toFloat())
-            textureView.setTransform(m)
+            container.layoutParams = lp
         }
+        // Transform from the EXPLICIT target size: texture
+        // (0..vw, cropTop..cropTop+cropH) -> view (0..targetW,
+        // 0..targetH). No letterbox offsets — the container IS the
+        // display size.
+        val s = targetH / cropH
+        val m = Matrix()
+        m.setScale((ratio * s).toFloat(), s.toFloat())
+        m.postTranslate(0f, (-cropTop * s).toFloat())
+        lastMatrix = m
+        textureView.setTransform(m)
     }
-
-    private fun dp(v: Int): Int =
-        (v * appContext.resources.displayMetrics.density).toInt()
 
     fun play(url: String) {
         lastUrl = url

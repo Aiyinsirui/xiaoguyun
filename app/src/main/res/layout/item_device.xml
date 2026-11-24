@@ -1,16 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- v1.2.5：摄像头卡片（白底 28dp 圆角 + 轻阴影）。双通道预览为占位缩略图
-     （不另外拉流：v1.2.3 已证明多路 RTMP 并发会拖垮中转导致黑屏），点卡片进直播页看实况。 -->
+<!-- v1.2.7: 摄像头卡片（白底 16dp 圆角，无阴影——分层靠灰阶）。
+     三个通道入口（全景 / 特写 / 双画面）由 DeviceAdapter 按实测宽度
+     以 16:9 建进行 channelRows，列数自适应（每块最小约 160dp，宽屏
+     3 列、窄屏 2 列换行，剩下的空着，绝不拉长填满）；缩略图是上次
+     观看的末帧（不另外拉流：多路 RTMP 并发会拖垮中转导致黑屏），
+     点一个入口进直播页看对应画面。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="wrap_content"
     android:orientation="vertical" android:padding="16dp"
     android:layout_marginBottom="12dp"
-    android:background="@drawable/bg_card" android:elevation="2dp">
+    android:background="@drawable/bg_card">
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:gravity="center_vertical">
         <TextView android:id="@+id/tvName" android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:textSize="18sp" android:textStyle="bold"
-            android:textColor="@color/text_primary" />
+            android:textColor="@color/text_primary"
+            style="@style/TextAppearance.XiaoGuYun.Title" />
         <TextView android:id="@+id/tvStatus" android:layout_width="wrap_content"
             android:layout_height="wrap_content" android:background="@drawable/bg_badge_online"
             android:paddingStart="10dp" android:paddingEnd="10dp"
@@ -24,31 +29,10 @@
             android:text="分享中" android:textSize="12sp" android:textStyle="bold"
             android:textColor="@color/primary" android:visibility="gone" />
     </LinearLayout>
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="horizontal" android:layout_marginTop="12dp">
-        <FrameLayout android:layout_width="0dp" android:layout_height="96dp"
-            android:layout_weight="1" android:layout_marginEnd="6dp"
-            android:background="@drawable/bg_preview">
-            <!-- v1.2.6: last viewed frame (gun lens). Empty until the user
-                 has watched this device once — then LastFrameStore fills
-                 it; without a saved frame the black placeholder shows. -->
-            <ImageView android:id="@+id/ivThumb1" android:layout_width="match_parent"
-                android:layout_height="match_parent" android:scaleType="centerCrop" />
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:layout_gravity="bottom|start" android:padding="8dp"
-                android:text="通道1 · 全景相机" android:textColor="@color/white" android:textSize="12sp" />
-        </FrameLayout>
-        <FrameLayout android:layout_width="0dp" android:layout_height="96dp"
-            android:layout_weight="1" android:layout_marginStart="6dp"
-            android:background="@drawable/bg_preview">
-            <!-- v1.2.6: last viewed frame (ball lens). See ivThumb1. -->
-            <ImageView android:id="@+id/ivThumb2" android:layout_width="match_parent"
-                android:layout_height="match_parent" android:scaleType="centerCrop" />
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:layout_gravity="bottom|start" android:padding="8dp"
-                android:text="通道2 · 特写相机" android:textColor="@color/white" android:textSize="12sp" />
-        </FrameLayout>
-    </LinearLayout>
+    <!-- 三个通道入口由代码按行填充（见 DeviceAdapter.buildChannelEntries）。 -->
+    <LinearLayout android:id="@+id/channelRows" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:layout_marginTop="12dp"
+        android:orientation="vertical" />
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:layout_marginTop="12dp"
         android:gravity="center_vertical">

@@ -13,7 +13,7 @@
             android:orientation="vertical" android:padding="24dp">
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:text="@string/device_list" android:textSize="18sp" android:textStyle="bold"
-                android:textColor="@color/text_primary" />
+                android:textColor="@color/text_primary" style="@style/TextAppearance.XiaoGuYun.Title" />
             <TextView android:id="@+id/tvStatus" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="4dp"
                 android:text="@string/connecting" android:textSize="14sp"
@@ -24,12 +24,12 @@
                 android:typeface="monospace" android:textIsSelectable="true"
                 android:visibility="gone" />
             <Button android:id="@+id/btnCopyCrash" android:layout_width="match_parent"
-                android:layout_height="48dp" android:layout_marginTop="4dp"
+                android:layout_height="40dp" android:layout_marginTop="4dp"
                 android:background="@drawable/bg_btn_white" android:textColor="@color/text_primary"
                 android:textSize="14sp" android:textAllCaps="false"
                 android:text="复制崩溃日志（粘贴发给开发者）" android:visibility="gone" />
             <Button android:id="@+id/btnClearCrash" android:layout_width="match_parent"
-                android:layout_height="48dp" android:layout_marginTop="4dp"
+                android:layout_height="40dp" android:layout_marginTop="4dp"
                 android:background="@drawable/bg_btn_white" android:textColor="@color/text_primary"
                 android:textSize="14sp" android:textAllCaps="false"
                 android:text="清除这条崩溃日志" android:visibility="gone" />
@@ -41,7 +41,7 @@
                 android:layout_height="wrap_content" android:gravity="center"
                 android:text="@string/empty_devices" android:visibility="gone" />
             <Button android:id="@+id/btnRetry" android:layout_width="match_parent"
-                android:layout_height="48dp" android:background="@drawable/bg_btn_primary"
+                android:layout_height="40dp" android:background="@drawable/bg_btn_primary"
                 android:textColor="@color/white" android:textSize="16sp" android:textAllCaps="false"
                 android:text="@string/retry" android:visibility="gone" />
         </LinearLayout>
@@ -51,16 +51,16 @@
             android:orientation="vertical" android:padding="24dp" android:visibility="gone">
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:text="@string/messages_title" android:textSize="18sp" android:textStyle="bold"
-                android:textColor="@color/text_primary" />
+                android:textColor="@color/text_primary" style="@style/TextAppearance.XiaoGuYun.Title" />
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:orientation="horizontal" android:layout_marginTop="12dp">
                 <EditText android:id="@+id/etMsgDate" android:layout_width="0dp"
-                    android:layout_height="48dp" android:layout_weight="1"
+                    android:layout_height="40dp" android:layout_weight="1"
                     android:background="@drawable/bg_input" android:paddingStart="16dp"
                     android:paddingEnd="16dp" android:hint="日期 yyyy-MM-dd"
                     android:inputType="date" android:textSize="16sp" />
                 <Button android:id="@+id/btnMsgLoad" android:layout_width="wrap_content"
-                    android:layout_height="48dp" android:layout_marginStart="8dp"
+                    android:layout_height="40dp" android:layout_marginStart="8dp"
                     android:background="@drawable/bg_btn_primary_capsule"
                     android:textColor="@color/white" android:textSize="14sp"
                     android:textAllCaps="false" android:paddingStart="20dp" android:paddingEnd="20dp"
@@ -83,7 +83,7 @@
                 android:orientation="vertical" android:padding="24dp">
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:text="@string/tools_title" android:textSize="18sp" android:textStyle="bold"
-                    android:textColor="@color/text_primary" />
+                    android:textColor="@color/text_primary" style="@style/TextAppearance.XiaoGuYun.Title" />
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:layout_marginTop="16dp" android:text="设备工具"
                     android:textColor="@color/text_secondary" android:textSize="13sp" android:textStyle="bold" />
@@ -93,7 +93,7 @@
                         android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_columnWeight="1" android:layout_gravity="fill_horizontal"
                         android:layout_margin="6dp" android:background="@drawable/bg_card"
-                        android:elevation="2dp" android:orientation="vertical"
+                        android:orientation="vertical"
                         android:padding="16dp" android:gravity="center_horizontal">
                         <TextView android:layout_width="48dp" android:layout_height="48dp"
                             android:background="@drawable/bg_tool_icon" android:gravity="center"
@@ -111,7 +111,7 @@
                         android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_columnWeight="1" android:layout_gravity="fill_horizontal"
                         android:layout_margin="6dp" android:background="@drawable/bg_card"
-                        android:elevation="2dp" android:orientation="vertical"
+                        android:orientation="vertical"
                         android:padding="16dp" android:gravity="center_horizontal">
                         <TextView android:layout_width="48dp" android:layout_height="48dp"
                             android:background="@drawable/bg_tool_icon" android:gravity="center"
@@ -129,7 +129,7 @@
                         android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_columnWeight="1" android:layout_gravity="fill_horizontal"
                         android:layout_margin="6dp" android:background="@drawable/bg_card"
-                        android:elevation="2dp" android:orientation="vertical"
+                        android:orientation="vertical"
                         android:padding="16dp" android:gravity="center_horizontal">
                         <TextView android:layout_width="48dp" android:layout_height="48dp"
                             android:background="@drawable/bg_tool_icon" android:gravity="center"
@@ -147,7 +147,7 @@
                         android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_columnWeight="1" android:layout_gravity="fill_horizontal"
                         android:layout_margin="6dp" android:background="@drawable/bg_card"
-                        android:elevation="2dp" android:orientation="vertical"
+                        android:orientation="vertical"
                         android:padding="16dp" android:gravity="center_horizontal">
                         <TextView android:layout_width="48dp" android:layout_height="48dp"
                             android:background="@drawable/bg_tool_icon" android:gravity="center"
@@ -165,7 +165,7 @@
                         android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_columnWeight="1" android:layout_gravity="fill_horizontal"
                         android:layout_margin="6dp" android:background="@drawable/bg_card"
-                        android:elevation="2dp" android:orientation="vertical"
+                        android:orientation="vertical"
                         android:padding="16dp" android:gravity="center_horizontal">
                         <TextView android:layout_width="48dp" android:layout_height="48dp"
                             android:background="@drawable/bg_tool_icon" android:gravity="center"
@@ -183,7 +183,7 @@
                         android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_columnWeight="1" android:layout_gravity="fill_horizontal"
                         android:layout_margin="6dp" android:background="@drawable/bg_card"
-                        android:elevation="2dp" android:orientation="vertical"
+                        android:orientation="vertical"
                         android:padding="16dp" android:gravity="center_horizontal">
                         <TextView android:layout_width="48dp" android:layout_height="48dp"
                             android:background="@drawable/bg_tool_icon" android:gravity="center"
@@ -208,10 +208,10 @@
                 android:orientation="vertical" android:padding="24dp">
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:text="@string/mine_title" android:textSize="18sp" android:textStyle="bold"
-                    android:textColor="@color/text_primary" />
+                    android:textColor="@color/text_primary" style="@style/TextAppearance.XiaoGuYun.Title" />
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:layout_marginTop="12dp" android:background="@drawable/bg_card"
-                    android:elevation="2dp" android:orientation="horizontal"
+                    android:orientation="horizontal"
                     android:padding="16dp" android:gravity="center_vertical">
                     <TextView android:layout_width="56dp" android:layout_height="56dp"
                         android:background="@drawable/bg_circle_primary" android:gravity="center"
@@ -240,7 +240,7 @@
                     <LinearLayout android:id="@+id/btnToolDevices"
                         android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:layout_margin="4dp"
-                        android:background="@drawable/bg_card" android:elevation="2dp"
+                        android:background="@drawable/bg_card"
                         android:orientation="vertical" android:padding="12dp"
                         android:gravity="center_horizontal">
                         <TextView android:layout_width="40dp" android:layout_height="40dp"
@@ -255,7 +255,7 @@
                     <LinearLayout android:id="@+id/btnToolAlbum"
                         android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:layout_margin="4dp"
-                        android:background="@drawable/bg_card" android:elevation="2dp"
+                        android:background="@drawable/bg_card"
                         android:orientation="vertical" android:padding="12dp"
                         android:gravity="center_horizontal">
                         <TextView android:layout_width="40dp" android:layout_height="40dp"
@@ -270,7 +270,7 @@
                     <LinearLayout android:id="@+id/btnToolShare"
                         android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:layout_margin="4dp"
-                        android:background="@drawable/bg_card" android:elevation="2dp"
+                        android:background="@drawable/bg_card"
                         android:orientation="vertical" android:padding="12dp"
                         android:gravity="center_horizontal">
                         <TextView android:layout_width="40dp" android:layout_height="40dp"
@@ -285,7 +285,7 @@
                 </LinearLayout>
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:layout_marginTop="12dp" android:background="@drawable/bg_card"
-                    android:elevation="2dp" android:orientation="vertical" android:padding="16dp">
+                    android:orientation="vertical" android:padding="16dp">
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:text="@string/my_debug_title" android:textSize="16sp" android:textStyle="bold"
                         android:textColor="@color/text_primary" />
@@ -296,12 +296,12 @@
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:orientation="horizontal" android:layout_marginTop="8dp">
                         <Button android:id="@+id/btnUploadDebug" android:layout_width="0dp"
-                            android:layout_height="48dp" android:layout_weight="1"
+                            android:layout_height="40dp" android:layout_weight="1"
                             android:background="@drawable/bg_btn_white_capsule"
                             android:textColor="@color/text_primary" android:textSize="14sp"
                             android:textAllCaps="false" android:text="立即上传调试日志" />
                         <Button android:id="@+id/btnCopyDebug" android:layout_width="0dp"
-                            android:layout_height="48dp" android:layout_weight="1"
+                            android:layout_height="40dp" android:layout_weight="1"
                             android:layout_marginStart="8dp"
                             android:background="@drawable/bg_btn_white_capsule"
                             android:textColor="@color/text_primary" android:textSize="14sp"
@@ -310,7 +310,7 @@
                 </LinearLayout>
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:layout_marginTop="12dp" android:background="@drawable/bg_card"
-                    android:elevation="2dp" android:orientation="vertical" android:padding="8dp">
+                    android:orientation="vertical" android:padding="8dp">
                     <TextView android:id="@+id/rowFaq" android:layout_width="match_parent"
                         android:layout_height="wrap_content" android:background="?attr/selectableItemBackground"
                         android:clickable="true" android:focusable="true"
@@ -359,24 +359,30 @@
             </LinearLayout>
         </ScrollView>
     </FrameLayout>
-    <!-- ============ 底部导航 ============ -->
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_marginStart="12dp" android:layout_marginEnd="12dp"
-        android:layout_marginBottom="12dp" android:background="@drawable/bg_nav_bar"
+    <!-- ============ 底部导航：悬浮胶囊（v1.2.7）============ -->
+    <!-- 不贴满全宽：宽度由内容决定、居中悬浮、圆角胶囊、带阴影；
+         四个 tab 与蓝色选中胶囊保留。 -->
+    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="16dp" android:background="@drawable/bg_nav_bar"
         android:elevation="4dp" android:orientation="horizontal" android:padding="8dp">
-        <FrameLayout android:id="@+id/tabHome" android:layout_width="0dp"
-            android:layout_height="wrap_content" android:layout_weight="1">
-            <TextView android:id="@+id/tvTabHome" android:layout_width="match_parent"
+        <FrameLayout android:id="@+id/tabHome" android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+            <TextView android:id="@+id/tvTabHome" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:gravity="center"
+                android:minWidth="56dp" android:paddingStart="12dp" android:paddingEnd="12dp"
                 android:paddingTop="10dp" android:paddingBottom="10dp"
+                android:letterSpacing="0.05"
                 android:text="@string/tab_home" android:textSize="14sp" android:textStyle="bold"
                 android:textColor="@color/white" android:background="@drawable/bg_nav_selected" />
         </FrameLayout>
-        <FrameLayout android:id="@+id/tabMessages" android:layout_width="0dp"
-            android:layout_height="wrap_content" android:layout_weight="1">
-            <TextView android:id="@+id/tvTabMessages" android:layout_width="match_parent"
+        <FrameLayout android:id="@+id/tabMessages" android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+            <TextView android:id="@+id/tvTabMessages" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:gravity="center"
+                android:minWidth="56dp" android:paddingStart="12dp" android:paddingEnd="12dp"
                 android:paddingTop="10dp" android:paddingBottom="10dp"
+                android:letterSpacing="0.05"
                 android:text="@string/tab_messages" android:textSize="14sp" android:textStyle="bold"
                 android:textColor="@color/text_secondary" />
             <TextView android:id="@+id/tvMsgBadge" android:layout_width="wrap_content"
@@ -387,19 +393,23 @@
                 android:textColor="@color/white" android:textSize="10sp" android:textStyle="bold"
                 android:visibility="gone" />
         </FrameLayout>
-        <FrameLayout android:id="@+id/tabTools" android:layout_width="0dp"
-            android:layout_height="wrap_content" android:layout_weight="1">
-            <TextView android:id="@+id/tvTabTools" android:layout_width="match_parent"
+        <FrameLayout android:id="@+id/tabTools" android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+            <TextView android:id="@+id/tvTabTools" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:gravity="center"
+                android:minWidth="56dp" android:paddingStart="12dp" android:paddingEnd="12dp"
                 android:paddingTop="10dp" android:paddingBottom="10dp"
+                android:letterSpacing="0.05"
                 android:text="@string/tab_tools" android:textSize="14sp" android:textStyle="bold"
                 android:textColor="@color/text_secondary" />
         </FrameLayout>
-        <FrameLayout android:id="@+id/tabMine" android:layout_width="0dp"
-            android:layout_height="wrap_content" android:layout_weight="1">
-            <TextView android:id="@+id/tvTabMine" android:layout_width="match_parent"
+        <FrameLayout android:id="@+id/tabMine" android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+            <TextView android:id="@+id/tvTabMine" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:gravity="center"
+                android:minWidth="56dp" android:paddingStart="12dp" android:paddingEnd="12dp"
                 android:paddingTop="10dp" android:paddingBottom="10dp"
+                android:letterSpacing="0.05"
                 android:text="@string/tab_mine" android:textSize="14sp" android:textStyle="bold"
                 android:textColor="@color/text_secondary" />
         </FrameLayout>

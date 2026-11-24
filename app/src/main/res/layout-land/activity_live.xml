@@ -18,7 +18,8 @@
                 android:textSize="26sp" android:textStyle="bold" android:textAllCaps="false" />
             <TextView android:id="@+id/tvTitle" android:layout_width="0dp" android:layout_height="wrap_content"
                 android:layout_weight="1" android:gravity="center"
-                android:textSize="18sp" android:textStyle="bold" android:textColor="@color/text_primary" />
+                android:textSize="18sp" android:textStyle="bold" android:textColor="@color/text_primary"
+                style="@style/TextAppearance.XiaoGuYun.Title" />
             <Button android:id="@+id/btnShareLive" android:layout_width="wrap_content"
                 android:layout_height="48dp" android:background="?attr/selectableItemBackgroundBorderless"
                 android:paddingStart="12dp" android:paddingEnd="12dp"
@@ -32,10 +33,15 @@
         </LinearLayout>
         <View android:layout_width="match_parent" android:layout_height="1dp"
             android:background="@color/border" />
-        <FrameLayout android:id="@+id/videoContainer" android:layout_width="match_parent"
-            android:layout_height="0dp" android:layout_weight="1"
-            android:layout_marginTop="8dp"
-            android:background="@color/video_black" android:gravity="center" />
+        <!-- v1.2.7: the video box is wrapped so the player can size the
+             container to the video's aspect and centre it (no black
+             bars inside the video box; leftover space is page bg). -->
+        <FrameLayout android:layout_width="match_parent" android:layout_height="0dp"
+            android:layout_weight="1" android:layout_marginTop="8dp">
+            <FrameLayout android:id="@+id/videoContainer" android:layout_width="match_parent"
+                android:layout_height="220dp" android:layout_gravity="center"
+                android:background="@color/video_black" android:gravity="center" />
+        </FrameLayout>
         <TextView android:id="@+id/tvLiveStatus" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="6dp"
             android:text="@string/connecting" android:textSize="12sp"
@@ -48,60 +54,80 @@
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:orientation="horizontal">
                 <Button android:id="@+id/btnPauseLive" android:layout_width="0dp"
-                    android:layout_height="48dp" android:layout_weight="1" android:layout_margin="4dp"
+                    android:layout_height="40dp" android:layout_weight="1" android:layout_margin="4dp"
                     android:background="@drawable/bg_btn_white_capsule"
                     android:minWidth="0dp" android:minHeight="0dp"
                     android:text="@string/live_pause" android:textSize="14sp"
                     android:textAllCaps="false" android:textColor="@color/text_primary" />
                 <Button android:id="@+id/btnDefinition" android:layout_width="0dp"
-                    android:layout_height="48dp" android:layout_weight="1" android:layout_margin="4dp"
+                    android:layout_height="40dp" android:layout_weight="1" android:layout_margin="4dp"
                     android:background="@drawable/bg_btn_white_capsule"
                     android:minWidth="0dp" android:minHeight="0dp"
-                    android:text="流畅" android:textSize="14sp"
+                    android:text="高清" android:textSize="14sp"
                     android:textAllCaps="false" android:textColor="@color/text_primary" />
             </LinearLayout>
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:orientation="horizontal">
                 <Button android:id="@+id/btnMute" android:layout_width="0dp"
-                    android:layout_height="48dp" android:layout_weight="1" android:layout_margin="4dp"
+                    android:layout_height="40dp" android:layout_weight="1" android:layout_margin="4dp"
                     android:background="@drawable/bg_btn_white_capsule"
                     android:minWidth="0dp" android:minHeight="0dp"
                     android:text="@string/mute" android:textSize="14sp"
                     android:textAllCaps="false" android:textColor="@color/text_primary" />
                 <Button android:id="@+id/btnFullscreen" android:layout_width="0dp"
-                    android:layout_height="48dp" android:layout_weight="1" android:layout_margin="4dp"
+                    android:layout_height="40dp" android:layout_weight="1" android:layout_margin="4dp"
                     android:background="@drawable/bg_btn_white_capsule"
                     android:minWidth="0dp" android:minHeight="0dp"
                     android:text="全屏" android:textSize="14sp"
                     android:textAllCaps="false" android:textColor="@color/text_primary" />
             </LinearLayout>
+            <!-- v1.2.7: 三通道快照条（全景 / 特写 / 双画面），见竖屏布局注释。 -->
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:layout_marginTop="12dp" android:text="@string/dual_channel"
                 android:textColor="@color/text_secondary" android:textSize="13sp" android:textStyle="bold" />
             <LinearLayout android:id="@+id/channelRow" android:layout_width="match_parent"
-                android:layout_height="96dp" android:layout_marginTop="8dp"
+                android:layout_height="wrap_content" android:layout_marginTop="8dp"
                 android:orientation="horizontal">
-                <FrameLayout android:id="@+id/channelPane1" android:layout_width="0dp"
-                    android:layout_height="match_parent" android:layout_weight="1"
-                    android:background="@drawable/bg_preview" />
-                <View android:id="@+id/channelDivider" android:layout_width="12dp"
-                    android:layout_height="48dp" android:layout_gravity="center_vertical"
-                    android:background="@drawable/bg_divider_handle" />
-                <FrameLayout android:id="@+id/channelPane2" android:layout_width="0dp"
-                    android:layout_height="match_parent" android:layout_weight="1"
-                    android:background="@drawable/bg_preview" />
-            </LinearLayout>
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:orientation="horizontal" android:layout_marginTop="6dp">
-                <TextView android:id="@+id/tvChannel1Label" android:layout_width="0dp"
+                <LinearLayout android:id="@+id/chanItemTop" android:layout_width="0dp"
                     android:layout_height="wrap_content" android:layout_weight="1"
-                    android:text="通道1 · 枪机镜头（上半）" android:textSize="12sp"
-                    android:textColor="@color/text_secondary" />
-                <View android:layout_width="12dp" android:layout_height="1dp" />
-                <TextView android:id="@+id/tvChannel2Label" android:layout_width="0dp"
+                    android:layout_marginEnd="4dp" android:orientation="vertical">
+                    <FrameLayout android:id="@+id/chanThumbTop" android:layout_width="match_parent"
+                        android:layout_height="64dp" android:background="@drawable/bg_preview">
+                        <ImageView android:id="@+id/ivChanTop" android:layout_width="match_parent"
+                            android:layout_height="match_parent" android:scaleType="fitCenter" />
+                    </FrameLayout>
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp" android:gravity="center"
+                        android:text="全景相机" android:textSize="12sp"
+                        android:textColor="@color/text_secondary" />
+                </LinearLayout>
+                <LinearLayout android:id="@+id/chanItemBottom" android:layout_width="0dp"
                     android:layout_height="wrap_content" android:layout_weight="1"
-                    android:text="通道2 · 球机镜头（下半）" android:textSize="12sp"
-                    android:textColor="@color/text_secondary" />
+                    android:layout_marginStart="4dp" android:layout_marginEnd="4dp"
+                    android:orientation="vertical">
+                    <FrameLayout android:id="@+id/chanThumbBottom" android:layout_width="match_parent"
+                        android:layout_height="64dp" android:background="@drawable/bg_preview">
+                        <ImageView android:id="@+id/ivChanBottom" android:layout_width="match_parent"
+                            android:layout_height="match_parent" android:scaleType="fitCenter" />
+                    </FrameLayout>
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp" android:gravity="center"
+                        android:text="特写相机" android:textSize="12sp"
+                        android:textColor="@color/text_secondary" />
+                </LinearLayout>
+                <LinearLayout android:id="@+id/chanItemFull" android:layout_width="0dp"
+                    android:layout_height="wrap_content" android:layout_weight="1"
+                    android:layout_marginStart="4dp" android:orientation="vertical">
+                    <FrameLayout android:id="@+id/chanThumbFull" android:layout_width="match_parent"
+                        android:layout_height="64dp" android:background="@drawable/bg_preview">
+                        <ImageView android:id="@+id/ivChanFull" android:layout_width="match_parent"
+                            android:layout_height="match_parent" android:scaleType="fitCenter" />
+                    </FrameLayout>
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp" android:gravity="center"
+                        android:text="双画面" android:textSize="12sp"
+                        android:textColor="@color/text_secondary" />
+                </LinearLayout>
             </LinearLayout>
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:layout_marginTop="12dp" android:text="@string/tools_row"
@@ -170,7 +196,7 @@
             </HorizontalScrollView>
             <LinearLayout android:id="@+id/ptzCard" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="12dp"
-                android:background="@drawable/bg_card" android:elevation="2dp"
+                android:background="@drawable/bg_card"
                 android:orientation="vertical" android:padding="16dp">
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:text="@string/ptz_title" android:textSize="16sp" android:textStyle="bold"
@@ -229,7 +255,7 @@
             </LinearLayout>
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:layout_marginTop="12dp" android:background="@drawable/bg_card"
-                android:elevation="2dp" android:orientation="vertical" android:padding="16dp">
+                android:orientation="vertical" android:padding="16dp">
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:text="@string/more_title" android:textSize="16sp" android:textStyle="bold"
                     android:textColor="@color/text_primary" />

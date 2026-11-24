@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v1.2.7: one channel entry on the home device card (16:9, size is set
+     in code from the measured row width — never stretched to fill).
+     Inflated per entry by DeviceListActivity; click opens LiveActivity
+     in that channel's mode. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content" android:layout_height="wrap_content"
+    android:background="@drawable/bg_preview">
+    <ImageView android:id="@+id/ivThumb" android:layout_width="match_parent"
+        android:layout_height="match_parent" android:scaleType="centerCrop" />
+    <TextView android:id="@+id/tvLabel" android:layout_width="wrap_content"
+        android:layout_height="wrap_content" android:layout_gravity="bottom|start"
+        android:padding="8dp" android:textColor="@color/white" android:textSize="12sp" />
+</FrameLayout>

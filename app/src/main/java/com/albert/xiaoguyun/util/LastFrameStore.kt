@@ -17,9 +17,12 @@ import java.io.FileOutputStream
  * lens / panoramic) in channel 1 and its bottom half (ball lens /
  * close-up) in channel 2.
  *
- * Files: <filesDir>/lastframe/<sn>_top.jpg and <sn>_bottom.jpg
- * (JPEG quality 80, 640x360 each). A missing file simply means
- * "never watched" — the home page keeps its black placeholder.
+ * Files: <filesDir>/lastframe/<sn>_top.jpg, <sn>_bottom.jpg and
+ * <sn>_full.jpg (JPEG quality 80; halves 640x360, full 640x720). A
+ * missing file simply means "never watched" — the home page keeps its
+ * black placeholder. v1.2.7: the full frame is also kept so the live
+ * page's new three-way channel strip can show a real "dual view"
+ * snapshot instead of a second live player.
  * No network, no new permission; files are private to the app.
  */
 object LastFrameStore {
@@ -33,9 +36,13 @@ object LastFrameStore {
     private fun bottomFile(context: Context, sn: String): File =
         File(dir(context), "${sn}_bottom.jpg")
 
+    private fun fullFile(context: Context, sn: String): File =
+        File(dir(context), "${sn}_full.jpg")
+
     /** Split a full 640x720 frame into its two lens halves and save
-     * them. No-op when the bitmap is null or too small. File I/O runs
-     * on a background thread so the UI thread never blocks. */
+     * them, plus the whole frame. No-op when the bitmap is null or too
+     * small. File I/O runs on a background thread so the UI thread
+     * never blocks. */
     fun save(context: Context, sn: String, full: Bitmap?) {
         if (full == null) return
         val w = full.width
@@ -48,6 +55,9 @@ object LastFrameStore {
                 val top = Bitmap.createBitmap(full, 0, 0, w, half)
                 val bottom = Bitmap.createBitmap(full, 0, half, w, h - half)
                 try {
+                    FileOutputStream(fullFile(appContext, sn)).use { out ->
+                        full.compress(Bitmap.CompressFormat.JPEG, 80, out)
+                    }
                     FileOutputStream(topFile(appContext, sn)).use { out ->
                         top.compress(Bitmap.CompressFormat.JPEG, 80, out)
                     }
@@ -74,6 +84,10 @@ object LastFrameStore {
     /** Decoded bottom half (ball lens), or null when never saved. */
     fun loadBottom(context: Context, sn: String): Bitmap? =
         decode(bottomFile(context, sn))
+
+    /** Decoded whole frame (both lenses), or null when never saved. */
+    fun loadFull(context: Context, sn: String): Bitmap? =
+        decode(fullFile(context, sn))
 
     private fun decode(f: File): Bitmap? {
         if (!f.exists() || f.length() <= 0) return null

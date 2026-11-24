@@ -51,32 +51,35 @@ import java.util.concurrent.TimeUnit
 class LiveActivity : AppCompatActivity() {
     private lateinit var ws: WsClient
     private lateinit var player: ExoRtmpPlayer
-    private lateinit var pipTop: ExoRtmpPlayer
-    private lateinit var pipBottom: ExoRtmpPlayer
     private var recorder: RtmpRecorder? = null
     private lateinit var intercom: IntercomManager
     private lateinit var tvStatus: TextView
     private lateinit var btnExitFullscreen: Button
     private lateinit var sn: String
     private var netType: String? = null
-    // Default wire value 1 = fluent, matching the original app's default
-    // (STREAM_HIGH/FLUENT semantics were verified empirically, see WsClient).
-    private var stream = WsClient.STREAM_FLUENT
+    // Default wire value 0 = high (v1.2.7: the user asked for HD by
+    // default; the single definition button toggles HD <-> fluent).
+    // STREAM_HIGH/FLUENT semantics were verified empirically, see WsClient.
+    private var stream = WsClient.STREAM_HIGH
     private var muted = false
     private var rtmpAddr: String? = null
     private var intercomMutedByTalk = false
 
-    // Three-pane view (v1.2.2): the camera is a three-video device
-    // (SN char 3), but /0 and /2 do NOT exist as RTMP streams (probed
-    // 2026-11-23) — the original's three panes are three CROPS of the
-    // one 640x720 combined frame: FULL (both lenses), TOP (gun lens),
-    // BOTTOM (ball lens). v1.2.6: the two channel panes are FIXED —
-    // pipTop is always TOP (gun / panoramic), pipBottom is always
-    // BOTTOM (ball / close-up); they never take FULL. Only the big view
-    // moves: tap a pane to show that lens big, or use 切换镜头 to cycle
-    // the big view FULL→TOP→BOTTOM. Each pane is its own player on the
-    // same RTMP URL (PiPs are muted — only the big view plays sound).
-    private var bigCrop = ExoRtmpPlayer.Crop.FULL
+    // v1.2.7 three-way channel model. The camera is a three-video
+    // device (SN char 3), but /0 and /2 do NOT exist as RTMP streams
+    // (probed 2026-11-23) — the three views are three CROPS of the
+    // one 640x720 combined frame. There is ONE live player now; the
+    // channel strip shows LastFrameStore snapshots (top half / bottom
+    // half / whole frame), never live players: three concurrent RTMP
+    // pulls were a black-screen root cause, and in v1.2.6 the PiP
+    // panes rendered the full frame squished into a corner (pane 1)
+    // or fully black (pane 2). A mode switch only changes the big
+    // player's crop (no restart, no dropped frames).
+    //   TOP    = 全景相机 (gun lens, top half, single picture)
+    //   BOTTOM = 特写相机 (ball lens, bottom half, single picture)
+    //   FULL   = 双画面 (both lenses, whole frame)
+    enum class LiveMode { TOP, BOTTOM, FULL }
+    private var mode = LiveMode.FULL
 
     // Smart tracking state (v1.2.2, code 16/17). Queried on open.
     private var trackOn = false
@@ -137,13 +140,12 @@ class LiveActivity : AppCompatActivity() {
     private var frameRefreshTask: Runnable? = null
 
     // v1.2.3 black-screen hardening. The v1.2.2 regression happened after a
-    // double page-open: each LiveActivity starts THREE ExoPlayers, so two
-    // quick opens burst SIX RTMP pulls at the relay over a flaky network and
-    // every player stalled in BUFFERING forever (no error, no frame). The
-    // PiPs now wait for the main player's first frame (4 s fallback), and a
-    // watchdog re-prepares the main player (max twice) when no frame arrives.
+    // double page-open: each LiveActivity used to start THREE ExoPlayers,
+    // so two quick opens burst SIX RTMP pulls at the relay over a flaky
+    // network and every player stalled in BUFFERING forever (no error, no
+    // frame). v1.2.7 keeps ONE player (the channel strip is snapshots);
+    // the watchdog re-prepares it (max twice) when no frame arrives.
     private val uiHandler = android.os.Handler(android.os.Looper.getMainLooper())
-    private var pipStartTask: Runnable? = null
     private var watchdogTask: Runnable? = null
     private var mainRecoveries = 0
 
@@ -166,24 +168,18 @@ class LiveActivity : AppCompatActivity() {
         tvStatus = findViewById(R.id.tvLiveStatus)
         // v1.2.2: TextureView (programmatic, NO background — the
         // background attribute is what crashed v1.1.7's constructor).
-        // Big view + two PiPs (see the three-pane comment on bigCrop).
+        // ONE player only (v1.2.7: the channel strip is snapshots).
         val videoContainer = findViewById<FrameLayout>(R.id.videoContainer)
         val textureView = TextureView(this)
         videoContainer.addView(textureView, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         player = ExoRtmpPlayer(this, textureView, videoContainer)
-        // v1.2.5: the two PiPs now live in the dual-channel strip below the
-        // video (channelPane1 = gun lens / panoramic, channelPane2 = ball
-        // lens / close-up), each in its own pane — same players, same crops,
-        // same tap-to-swap, only the container changed.
-        pipTop = makePip(findViewById(R.id.channelPane1))
-        pipBottom = makePip(findViewById(R.id.channelPane2))
-        pipTop.crop = ExoRtmpPlayer.Crop.TOP
-        pipBottom.crop = ExoRtmpPlayer.Crop.BOTTOM
-        applyCrops()
-        setupChannelDivider()
-        pipTop.setMuted(true)
-        pipBottom.setMuted(true)
+        // v1.2.7: initial channel mode from the home page (TOP =
+        // 全景相机, BOTTOM = 特写相机, FULL = 双画面; default FULL).
+        mode = runCatching { LiveMode.valueOf(intent.getStringExtra("mode") ?: "FULL") }
+            .getOrDefault(LiveMode.FULL)
+        player.crop = modeCrop(mode)
+        setupChannelStrip()
         // v1.2.2: floating "退出全屏" — the old fullscreen hid every
         // button, so the only exit was tapping the video (and a tap with
         // any movement became a PTZ swipe instead). This button is
@@ -303,6 +299,10 @@ class LiveActivity : AppCompatActivity() {
             android.widget.Toast.makeText(this, "直播地址已复制，可粘贴到电脑 VLC/ffprobe 看编码", android.widget.Toast.LENGTH_SHORT).show()
         }
         val btnDef = findViewById<Button>(R.id.btnDefinition)
+        // v1.2.7: one button reuses the toggle — it shows the CURRENT
+        // definition; one tap switches to the other (高清 <-> 流畅),
+        // another tap switches back. Default is 高清.
+        btnDef.text = if (stream == WsClient.STREAM_HIGH) "高清" else "流畅"
         btnDef.setOnClickListener {
             triedFallback = false
             playErrored = false
@@ -323,9 +323,9 @@ class LiveActivity : AppCompatActivity() {
         btnPause.setOnClickListener {
             livePaused = !livePaused
             if (livePaused) {
-                player.pause(); pipTop.pause(); pipBottom.pause()
+                player.pause()
             } else {
-                player.resume(); pipTop.resume(); pipBottom.resume()
+                player.resume()
             }
             btnPause.text = if (livePaused) getString(R.string.live_resume) else getString(R.string.live_pause)
             DebugLog.log("UI", if (livePaused) "直播已暂停" else "直播继续播放")
@@ -573,110 +573,60 @@ class LiveActivity : AppCompatActivity() {
             btnExitFullscreen.visibility = View.GONE
         }
         player.refit()
-        pipTop.refit()
-        pipBottom.refit()
     }
 
-    // ---- three-pane helpers (v1.2.2) ----
+    // ---- three-way channel strip (v1.2.7) ----
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
-    /** One channel pane: a TextureView filling the given pane, with its own
-     * (muted) player. Tap to make it big. (v1.2.5: panes moved out of the
-     * video container into the dual-channel strip; the player, crops and
-     * tap-to-swap are unchanged.) */
-    private fun makePip(pane: FrameLayout): ExoRtmpPlayer {
-        val tv = TextureView(this)
-        pane.addView(tv, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-        val p = ExoRtmpPlayer(this, tv, pane, fixedSize = true)
-        tv.setOnClickListener { onPipTapped(p) }
-        return p
+    private fun modeCrop(m: LiveMode): ExoRtmpPlayer.Crop = when (m) {
+        LiveMode.TOP -> ExoRtmpPlayer.Crop.TOP
+        LiveMode.BOTTOM -> ExoRtmpPlayer.Crop.BOTTOM
+        LiveMode.FULL -> ExoRtmpPlayer.Crop.FULL
     }
 
-    /** Dual-channel divider: drag left/right to change the two panes'
-     * share of the row (layout weights only — playback logic untouched). */
-    private fun setupChannelDivider() {
-        val row = findViewById<LinearLayout>(R.id.channelRow)
-        val pane1 = findViewById<FrameLayout>(R.id.channelPane1)
-        val pane2 = findViewById<FrameLayout>(R.id.channelPane2)
-        findViewById<View>(R.id.channelDivider).setOnTouchListener { _, e ->
-            when (e.action) {
-                MotionEvent.ACTION_DOWN -> true
-                MotionEvent.ACTION_MOVE -> {
-                    val rowW = row.width.toFloat()
-                    if (rowW > 0) {
-                        val loc = IntArray(2)
-                        row.getLocationOnScreen(loc)
-                        val ratio = ((e.rawX - loc[0]) / rowW).coerceIn(0.25f, 0.75f)
-                        (pane1.layoutParams as LinearLayout.LayoutParams).weight = ratio
-                        (pane2.layoutParams as LinearLayout.LayoutParams).weight = 1f - ratio
-                        pane1.requestLayout()
-                        pane2.requestLayout()
-                        pipTop.refit()
-                        pipBottom.refit()
-                    }
-                    true
-                }
-                else -> false
-            }
-        }
+    private fun modeName(m: LiveMode): String = when (m) {
+        LiveMode.TOP -> "全景相机（枪机镜头）"
+        LiveMode.BOTTOM -> "特写相机（球机镜头）"
+        LiveMode.FULL -> "双画面（两个镜头同时看）"
     }
 
-    /** The tapped channel pane's crop becomes the big view's crop. The
-     * panes themselves are FIXED (pipTop = TOP gun lens, pipBottom =
-     * BOTTOM ball lens) and never change — only the big view moves. */
-    private fun onPipTapped(pip: ExoRtmpPlayer) {
-        bigCrop = pip.crop
-        applyCrops()
-        DebugLog.log("UI", "点小画面换大画面 crop=$bigCrop")
+    /** The three snapshot items: tap one to switch the big view's
+     * mode. Only the crop changes — the player is never restarted,
+     * no frame is dropped. Snapshots come from LastFrameStore (top
+     * half / bottom half / whole frame); an item with no snapshot
+     * yet keeps its dark placeholder. */
+    private fun setupChannelStrip() {
+        findViewById<View>(R.id.chanItemTop).setOnClickListener { setMode(LiveMode.TOP) }
+        findViewById<View>(R.id.chanItemBottom).setOnClickListener { setMode(LiveMode.BOTTOM) }
+        findViewById<View>(R.id.chanItemFull).setOnClickListener { setMode(LiveMode.FULL) }
+        refreshChannelStrip()
     }
 
-    /** v1.2.6: the two channel panes are FIXED crops — channelPane1
-     * (pipTop) is always TOP (gun lens / panoramic), channelPane2
-     * (pipBottom) is always BOTTOM (ball lens / close-up). They never
-     * take FULL. Only the big view's crop changes here; the panes and
-     * their labels never move. The old code rotated FULL/TOP/BOTTOM
-     * among the three panes (rest = entries.filter { it != bigCrop }),
-     * so once the big view was a single lens, one pane inevitably got
-     * FULL — and FULL is a near-square 640x720 frame squeezed into a
-     * 16:9 pane, which looked like the pane had "split in two"; after
-     * tapping both panes, both showed the split (four parts). */
-    private fun applyCrops() {
-        player.crop = bigCrop
-        // Panes are fixed (TOP / BOTTOM, set once in onCreate) — never
-        // reassign their crops, and never rewrite their labels (the
-        // layout already says 通道1 · 枪机镜头（上半）/ 通道2 · 球机镜头（下半）).
+    private fun setMode(m: LiveMode) {
+        if (mode == m) return
+        mode = m
+        player.crop = modeCrop(m)
+        refreshChannelStrip()
+        DebugLog.log("UI", "切换通道模式 mode=$m")
+        Toast.makeText(this, "大画面：${modeName(m)}", Toast.LENGTH_SHORT).show()
     }
 
-    /** Plays the RTMP URL: main pane immediately, the two muted PiPs only
-     *  after the main pane renders its first frame (4 s fallback). */
-    private fun playAll(addr: String) {
-        mainRecoveries = 0
-        player.play(addr)
-        pipStartTask?.let { uiHandler.removeCallbacks(it) }
-        // v1.2.3: the first-frame callback and the 4 s fallback share one
-        // Runnable — without this guard the fallback still fired after the
-        // callback had already started the PiPs, restarting both players once.
-        var pipsStarted = false
-        val startPips = Runnable {
-            if (isFinishing || pipsStarted) return@Runnable
-            pipsStarted = true
-            // Cancel the still-pending 4 s fallback (same Runnable instance).
-            pipStartTask?.let { uiHandler.removeCallbacks(it) }
-            DebugLog.log("PLAYER", "启动两个小画面播放器")
-            pipTop.play(addr)
-            pipBottom.play(addr)
-        }
-        pipStartTask = startPips
-        player.onFirstFrame = { uiHandler.post(startPips) }
-        uiHandler.postDelayed(startPips, 4000)
-    }
-
-    private fun cropName(c: ExoRtmpPlayer.Crop): String = when (c) {
-        ExoRtmpPlayer.Crop.FULL -> "双镜头（全画面）"
-        ExoRtmpPlayer.Crop.TOP -> "枪机镜头（上半）"
-        ExoRtmpPlayer.Crop.BOTTOM -> "球机镜头（下半）"
+    private fun refreshChannelStrip() {
+        // Snapshots (may be null before the first watch — placeholder stays).
+        findViewById<android.widget.ImageView>(R.id.ivChanTop)
+            .setImageBitmap(LastFrameStore.loadTop(this, sn))
+        findViewById<android.widget.ImageView>(R.id.ivChanBottom)
+            .setImageBitmap(LastFrameStore.loadBottom(this, sn))
+        findViewById<android.widget.ImageView>(R.id.ivChanFull)
+            .setImageBitmap(LastFrameStore.loadFull(this, sn))
+        // Highlight the current mode with the primary ring on its thumb.
+        findViewById<View>(R.id.chanThumbTop)
+            .setBackgroundResource(if (mode == LiveMode.TOP) R.drawable.bg_preview_selected else R.drawable.bg_preview)
+        findViewById<View>(R.id.chanThumbBottom)
+            .setBackgroundResource(if (mode == LiveMode.BOTTOM) R.drawable.bg_preview_selected else R.drawable.bg_preview)
+        findViewById<View>(R.id.chanThumbFull)
+            .setBackgroundResource(if (mode == LiveMode.FULL) R.drawable.bg_preview_selected else R.drawable.bg_preview)
     }
 
     // ---- smart tracking helpers (v1.2.2, code 16/17) ----
@@ -766,7 +716,7 @@ class LiveActivity : AppCompatActivity() {
                 val host = addr.substringAfter("://").substringBefore("/")
                 tvStatus.text = "已拿到直播地址（$host，${if (stream == WsClient.STREAM_HIGH) "高清" else "流畅"}），正在播放…"
                 playErrored = false
-                playAll(addr)
+                play(addr)
                 armWatchdog(addr)
             }
         }
@@ -800,22 +750,27 @@ class LiveActivity : AppCompatActivity() {
         uiHandler.postDelayed(task, 8000)
     }
 
+    /** Plays the RTMP URL on the single live player. */
+    private fun play(addr: String) {
+        mainRecoveries = 0
+        player.play(addr)
+    }
+
     /**
-     * Lens switch (v1.2.2): cycles the BIG view's crop — full (both
-     * lenses) -> gun lens (top half) -> ball lens (bottom half) -> full.
-     * The old implementation swapped the RTMP address suffix 1<->2,
-     * which was wrong: /2 does not exist as a stream (probed
-     * 2026-11-23), so switching froze the player on a dead URL. The
-     * two lenses are the two halves of the one combined frame.
+     * Lens switch (v1.2.2, now mode-based): cycles the big view —
+     * 全景 (gun lens) -> 特写 (ball lens) -> 双画面 -> 全景.
+     * Only the crop changes; the two lenses are the two halves of
+     * the one combined frame (swapping the RTMP suffix 1<->2 was
+     * wrong: /2 does not exist as a stream, probed 2026-11-23).
      */
     private fun switchLens() {
-        bigCrop = when (bigCrop) {
-            ExoRtmpPlayer.Crop.FULL -> ExoRtmpPlayer.Crop.TOP
-            ExoRtmpPlayer.Crop.TOP -> ExoRtmpPlayer.Crop.BOTTOM
-            ExoRtmpPlayer.Crop.BOTTOM -> ExoRtmpPlayer.Crop.FULL
-        }
-        applyCrops()
-        Toast.makeText(this, "大画面：${cropName(bigCrop)}", Toast.LENGTH_SHORT).show()
+        setMode(
+            when (mode) {
+                LiveMode.TOP -> LiveMode.BOTTOM
+                LiveMode.BOTTOM -> LiveMode.FULL
+                LiveMode.FULL -> LiveMode.TOP
+            },
+        )
     }
 
     private fun takeSnapshot() {
@@ -905,8 +860,6 @@ class LiveActivity : AppCompatActivity() {
         resumeCheckTask = null
         if (!livePaused) {
             try { player.pause() } catch (_: Exception) {}
-            try { pipTop.pause() } catch (_: Exception) {}
-            try { pipBottom.pause() } catch (_: Exception) {}
         }
     }
 
@@ -935,8 +888,7 @@ class LiveActivity : AppCompatActivity() {
         }
         // Short background: resume and verify frames are flowing.
         try { player.resume() } catch (_: Exception) {}
-        try { pipTop.resume() } catch (_: Exception) {}
-        try { pipBottom.resume() } catch (_: Exception) {}
+        refreshChannelStrip()
         startFrameRefresh()
         val resumePos = try { player.timeMs } catch (_: Exception) { -1L }
         val check = Runnable {
@@ -971,13 +923,15 @@ class LiveActivity : AppCompatActivity() {
 
     /** v1.2.6 (issue 4): refresh the saved frame every 30 s while the
      * live page is in the foreground, so the home page shows a recent
-     * frame even if the user never leaves via onPause cleanly. */
+     * frame even if the user never leaves via onPause cleanly.
+     * v1.2.7: the channel strip snapshots are refreshed together. */
     private fun startFrameRefresh() {
         stopFrameRefresh()
         val task = object : Runnable {
             override fun run() {
                 if (isFinishing) return
                 saveLastFrame()
+                refreshChannelStrip()
                 uiHandler.postDelayed(this, 30_000)
             }
         }
@@ -993,7 +947,6 @@ class LiveActivity : AppCompatActivity() {
     override fun onDestroy() {
         try { unregisterReceiver(micTestReceiver) } catch (_: Exception) {}
         try {
-            pipStartTask?.let { uiHandler.removeCallbacks(it) }
             watchdogTask?.let { uiHandler.removeCallbacks(it) }
             resumeCheckTask?.let { uiHandler.removeCallbacks(it) }
             stopFrameRefresh()
@@ -1007,8 +960,6 @@ class LiveActivity : AppCompatActivity() {
         try { if (intercom.isTalking) intercom.stop() } catch (_: Exception) {}
         try { recorder?.release() } catch (_: Exception) {}
         try { player.release() } catch (_: Exception) {}
-        try { pipTop.release() } catch (_: Exception) {}
-        try { pipBottom.release() } catch (_: Exception) {}
         ws.disconnect()
         super.onDestroy()
     }

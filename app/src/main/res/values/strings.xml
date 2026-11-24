@@ -44,8 +44,11 @@
     <string name="live_back">‹</string>
     <string name="live_share">分享</string>
     <string name="live_settings">设置</string>
-    <string name="dual_channel">双通道</string>
-    <string name="dual_channel_hint">点小画面切换大画面，拖中间的条调两路占比</string>
+    <string name="dual_channel">通道</string>
+    <string name="dual_channel_hint">点一个通道切换大画面（快照，点后立即切换）</string>
+    <string name="channel_pano">通道1 · 全景相机</string>
+    <string name="channel_closeup">通道2 · 特写相机</string>
+    <string name="channel_dual">通道3 · 双画面</string>
     <string name="tools_row">工具</string>
     <string name="ptz_title">云台控制</string>
     <string name="ptz_hint">点按转一下，按住连续转；也可以直接在画面上滑动</string>

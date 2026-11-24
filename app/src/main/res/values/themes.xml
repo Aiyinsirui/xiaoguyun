@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- v1.2.7: Lexend Variable is the default font (Latin/digits; CJK
+         falls back to system). Body letter spacing 0.025em (M3 body);
+         titles use TextAppearance.XiaoGuYun.Title (0.015em, wght 600);
+         labels/buttons use 0.05em where set in layout. M3 spec tracking
+         numbers (label 0.5 / body 0.25 / title 0.15) are applied as
+         1/10 em, the Android letterSpacing convention. -->
     <style name="Theme.XiaoGuYun" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryDark">@color/primary_dark</item>
@@ -7,5 +13,17 @@
         <item name="android:windowBackground">@color/bg_page</item>
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:fontFamily">@font/lexend</item>
+        <item name="fontFamily">@font/lexend</item>
+        <item name="android:textViewStyle">@style/Widget.XiaoGuYun.TextView</item>
+    </style>
+
+    <style name="Widget.XiaoGuYun.TextView" parent="android:Widget.TextView">
+        <item name="android:letterSpacing">0.025</item>
+    </style>
+
+    <style name="TextAppearance.XiaoGuYun.Title" parent="TextAppearance.AppCompat.Title">
+        <item name="android:letterSpacing">0.015</item>
+        <item name="android:fontVariationSettings">\'wght\' 600</item>
     </style>
 </resources>
