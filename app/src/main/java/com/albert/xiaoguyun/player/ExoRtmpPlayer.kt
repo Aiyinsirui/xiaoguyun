@@ -106,6 +106,14 @@ class ExoRtmpPlayer(
         } catch (_: Exception) { -1 }
 
     init {
+        // v1.2.6: re-apply the crop transform whenever the view is laid
+        // out at a new size (e.g. after fitViewToVideo resized it). The
+        // transform is computed from the view's CURRENT size, so a
+        // resize that lands after the transform was set can no longer
+        // leave a stale pivot behind (the v1.2.5 BOTTOM-crop race).
+        textureView.addOnLayoutChangeListener { _, l, t, r, b, ol, ot, orr, ob ->
+            if (r - l != orr - ol || b - t != ob - ot) applyCrop()
+        }
         player.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
                 DebugLog.log("PLAYER", "#$instanceId error: ${error.errorCodeName} ${error.message}")
@@ -210,21 +218,58 @@ class ExoRtmpPlayer(
     }
 
     /**
-     * Crops the texture to one half of the combined frame. The transform
-     * scales the texture 2x vertically: pivoted at the top edge it shows
-     * the top half (gun lens), pivoted at the bottom edge the bottom
-     * half (ball lens). FULL is the identity (whole 640x720 frame).
+     * Crops the texture to one part of the combined frame AND fits it to
+     * the view without distortion (v1.2.6 rewrite).
+     *
+     * Root cause of the v1.2.5 distortion (round trash can rendered as an
+     * ellipse; FULL top half much smaller than the bottom half): the old
+     * code set a bare 2x-vertical-scale matrix, which REPLACES the
+     * aspect-fit transform — so the texture was stretched to whatever
+     * size the TextureView happened to be, instead of being letterboxed.
+     * Fixed-size panes (MATCH_PARENT in a 16:9-ish pane) were the worst
+     * case, and the BOTTOM pivot read textureView.height from a post()
+     * that could run before fitViewToVideo's resize landed, cropping
+     * the wrong region.
+     *
+     * This version computes one matrix that does both jobs from the
+     * view's CURRENT size and the video's REAL size: it fits the crop
+     * region (FULL = whole 640x720 frame, TOP/BOTTOM = one 640x360
+     * half) into the view preserving aspect (letterbox only, never
+     * stretch), centred. FULL halves stay equal height (uniform scale);
+     * a single lens is true 16:9. Because the matrix is derived from
+     * the current view size, it is correct whether or not the resize
+     * has landed yet — and the layout-change listener re-applies it
+     * once the resize does land, so the old race is gone.
      */
     private fun applyCrop() {
+        val vs = lastVideoSize ?: return
+        val vw = vs.width
+        val vh = vs.height
+        if (vw <= 0 || vh <= 0) return
+        val ratio = vs.pixelWidthHeightRatio.takeIf { it > 0f }?.toDouble() ?: 1.0
+        val videoW = vw * ratio
+        val videoH = vh.toDouble()
         textureView.post {
-            val h = textureView.height
-            if (h <= 0) return@post
-            val m = Matrix()
-            when (crop) {
-                Crop.FULL -> { /* identity */ }
-                Crop.TOP -> m.setScale(1f, 2f, 0f, 0f)
-                Crop.BOTTOM -> m.setScale(1f, 2f, 0f, h.toFloat())
+            val viewW = textureView.width.toFloat()
+            val viewH = textureView.height.toFloat()
+            if (viewW <= 0 || viewH <= 0) return@post
+            // Crop region inside the texture (top half = gun lens,
+            // bottom half = ball lens, whole frame = both).
+            val (cropTop, cropH) = when (crop) {
+                Crop.FULL -> 0.0 to videoH
+                Crop.TOP -> 0.0 to videoH / 2.0
+                Crop.BOTTOM -> videoH / 2.0 to videoH / 2.0
             }
+            // Fit that region into the view, preserving aspect.
+            val s = minOf(viewW / videoW, viewH / cropH).toFloat()
+            val dispW = (videoW * s).toFloat()
+            val dispH = (cropH * s).toFloat()
+            val ox = (viewW - dispW) / 2f
+            val oy = (viewH - dispH) / 2f
+            // Map texture (x, y) -> view (x*s + ox, (y - cropTop)*s + oy).
+            val m = Matrix()
+            m.setScale(s, s)
+            m.postTranslate(ox, (oy - cropTop * s).toFloat())
             textureView.setTransform(m)
         }
     }

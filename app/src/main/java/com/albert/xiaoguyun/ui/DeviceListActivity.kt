@@ -151,7 +151,15 @@ class DeviceListActivity : AppCompatActivity() {
                     DebugLog.log("UI", "拦截 800ms 内重复打开直播页")
                 } else {
                     lastLiveLaunchMs = now
-                    if (!d.isOnline) {
+                    // v1.2.6: the "device offline" toast used to fire on a
+                    // single stale REST/WS status flicker even when the
+                    // device was actually online (the live page then
+                    // fetched an address fine) — a false alarm. Only warn
+                    // when the signalling socket itself is down; if WS is
+                    // open, the live page reports the real outcome
+                    // (address fetched or "取流失败") and no toast is
+                    // needed here.
+                    if (!d.isOnline && !ws.isOpen()) {
                         Toast.makeText(this, "设备离线，仍可尝试打开（以 WS 状态为准）", Toast.LENGTH_SHORT).show()
                     }
                     val i = Intent(this, LiveActivity::class.java)
@@ -443,6 +451,9 @@ class DeviceListActivity : AppCompatActivity() {
             val shareBadge: TextView = v.findViewById(R.id.tvShareBadge)
             val battery: TextView = v.findViewById(R.id.tvBattery)
             val btnDetail: Button = v.findViewById(R.id.btnDetail)
+            // v1.2.6: last viewed frame thumbnails (gun / ball).
+            val thumb1: android.widget.ImageView = v.findViewById(R.id.ivThumb1)
+            val thumb2: android.widget.ImageView = v.findViewById(R.id.ivThumb2)
         }
         override fun onCreateViewHolder(p: ViewGroup, t: Int): Holder =
             Holder(LayoutInflater.from(p.context).inflate(R.layout.item_device, p, false))
@@ -463,6 +474,15 @@ class DeviceListActivity : AppCompatActivity() {
             // owned=0：别人分享给本账号的设备（列表接口默认只拉 owned=1，平时不出现）。
             h.shareBadge.visibility = if (d.owned == 0) View.VISIBLE else View.GONE
             h.battery.text = if (d.bat >= 0) "电量 ${d.bat}%" else ""
+            // v1.2.6: last viewed frame (TP-Link / Daguyun show the last
+            // frame on the home card instead of a black box). Always
+            // clear first so a recycled row never shows another
+            // device's frame, then load this SN's saved halves; when
+            // nothing was ever saved the black placeholder stays.
+            h.thumb1.setImageBitmap(null)
+            h.thumb2.setImageBitmap(null)
+            com.albert.xiaoguyun.util.LastFrameStore.loadTop(h.itemView.context, d.sn)?.let { h.thumb1.setImageBitmap(it) }
+            com.albert.xiaoguyun.util.LastFrameStore.loadBottom(h.itemView.context, d.sn)?.let { h.thumb2.setImageBitmap(it) }
             h.itemView.setOnClickListener { onClick(d) }
             h.btnDetail.setOnClickListener { onDetail(d) }
         }

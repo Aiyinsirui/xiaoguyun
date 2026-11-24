@@ -19,4 +19,8 @@
     <color name="video_black">#000000</color>
     <color name="white">#FFFFFF</color>
     <color name="chip_bg">#F2F4F8</color>
+    <!-- v1.2.6: launcher icon background — sampled from the icon art
+         (#017CFB, primary #007AFF family) so the adaptive-icon
+         foreground blends seamlessly. -->
+    <color name="ic_launcher_background">#017CFB</color>
 </resources>

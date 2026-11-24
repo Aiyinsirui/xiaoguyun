@@ -29,6 +29,11 @@
         <FrameLayout android:layout_width="0dp" android:layout_height="96dp"
             android:layout_weight="1" android:layout_marginEnd="6dp"
             android:background="@drawable/bg_preview">
+            <!-- v1.2.6: last viewed frame (gun lens). Empty until the user
+                 has watched this device once — then LastFrameStore fills
+                 it; without a saved frame the black placeholder shows. -->
+            <ImageView android:id="@+id/ivThumb1" android:layout_width="match_parent"
+                android:layout_height="match_parent" android:scaleType="centerCrop" />
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:layout_gravity="bottom|start" android:padding="8dp"
                 android:text="通道1 · 全景相机" android:textColor="@color/white" android:textSize="12sp" />
@@ -36,6 +41,9 @@
         <FrameLayout android:layout_width="0dp" android:layout_height="96dp"
             android:layout_weight="1" android:layout_marginStart="6dp"
             android:background="@drawable/bg_preview">
+            <!-- v1.2.6: last viewed frame (ball lens). See ivThumb1. -->
+            <ImageView android:id="@+id/ivThumb2" android:layout_width="match_parent"
+                android:layout_height="match_parent" android:scaleType="centerCrop" />
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:layout_gravity="bottom|start" android:padding="8dp"
                 android:text="通道2 · 特写相机" android:textColor="@color/white" android:textSize="12sp" />

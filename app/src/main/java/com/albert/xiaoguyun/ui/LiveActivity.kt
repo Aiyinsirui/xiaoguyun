@@ -16,6 +16,7 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.MediaStore
 import android.view.GestureDetector
 import android.view.MotionEvent
@@ -37,6 +38,7 @@ import com.albert.xiaoguyun.net.ApiClient
 import com.albert.xiaoguyun.net.TokenStore
 import com.albert.xiaoguyun.player.ExoRtmpPlayer
 import com.albert.xiaoguyun.player.RtmpRecorder
+import com.albert.xiaoguyun.util.LastFrameStore
 import com.albert.xiaoguyun.ws.WsClient
 import java.io.File
 import java.text.SimpleDateFormat
@@ -68,9 +70,11 @@ class LiveActivity : AppCompatActivity() {
     // (SN char 3), but /0 and /2 do NOT exist as RTMP streams (probed
     // 2026-11-23) — the original's three panes are three CROPS of the
     // one 640x720 combined frame: FULL (both lenses), TOP (gun lens),
-    // BOTTOM (ball lens). The big view shows one crop; the two PiPs
-    // show the other two. Tap a PiP to make it big; the 切换镜头 button
-    // cycles the big view's crop. Each pane is its own player on the
+    // BOTTOM (ball lens). v1.2.6: the two channel panes are FIXED —
+    // pipTop is always TOP (gun / panoramic), pipBottom is always
+    // BOTTOM (ball / close-up); they never take FULL. Only the big view
+    // moves: tap a pane to show that lens big, or use 切换镜头 to cycle
+    // the big view FULL→TOP→BOTTOM. Each pane is its own player on the
     // same RTMP URL (PiPs are muted — only the big view plays sound).
     private var bigCrop = ExoRtmpPlayer.Crop.FULL
 
@@ -119,6 +123,18 @@ class LiveActivity : AppCompatActivity() {
     private var isFullscreen = false
     // v1.2.5: live paused via the control bar (watchdog skips recovery while paused).
     private var livePaused = false
+
+    // v1.2.6 background/foreground recovery (issue 5) + last-frame
+    // snapshot (issue 4). The RTMP address is session-bound (the
+    // videoplay reply is cached 40 s); after a long background stay
+    // the old address is dead and the players freeze on the last frame
+    // (the on-screen timestamp stops). We record when we went to
+    // background and where playback was, so onResume can tell a short
+    // pause (just resume) from a dead stream (re-fetch a fresh address).
+    private var bgPauseWallMs = 0L
+    private var bgPausePositionMs = -1L
+    private var resumeCheckTask: Runnable? = null
+    private var frameRefreshTask: Runnable? = null
 
     // v1.2.3 black-screen hardening. The v1.2.2 regression happened after a
     // double page-open: each LiveActivity starts THREE ExoPlayers, so two
@@ -607,21 +623,30 @@ class LiveActivity : AppCompatActivity() {
         }
     }
 
-    /** The tapped PiP's crop becomes the big view's crop; the PiPs take
-     * the other two crops. */
+    /** The tapped channel pane's crop becomes the big view's crop. The
+     * panes themselves are FIXED (pipTop = TOP gun lens, pipBottom =
+     * BOTTOM ball lens) and never change — only the big view moves. */
     private fun onPipTapped(pip: ExoRtmpPlayer) {
         bigCrop = pip.crop
         applyCrops()
         DebugLog.log("UI", "点小画面换大画面 crop=$bigCrop")
     }
 
+    /** v1.2.6: the two channel panes are FIXED crops — channelPane1
+     * (pipTop) is always TOP (gun lens / panoramic), channelPane2
+     * (pipBottom) is always BOTTOM (ball lens / close-up). They never
+     * take FULL. Only the big view's crop changes here; the panes and
+     * their labels never move. The old code rotated FULL/TOP/BOTTOM
+     * among the three panes (rest = entries.filter { it != bigCrop }),
+     * so once the big view was a single lens, one pane inevitably got
+     * FULL — and FULL is a near-square 640x720 frame squeezed into a
+     * 16:9 pane, which looked like the pane had "split in two"; after
+     * tapping both panes, both showed the split (four parts). */
     private fun applyCrops() {
         player.crop = bigCrop
-        val rest = ExoRtmpPlayer.Crop.entries.filter { it != bigCrop }
-        pipTop.crop = rest[0]
-        pipBottom.crop = rest[1]
-        findViewById<TextView>(R.id.tvChannel1Label)?.text = "通道1 · ${cropName(pipTop.crop)}"
-        findViewById<TextView>(R.id.tvChannel2Label)?.text = "通道2 · ${cropName(pipBottom.crop)}"
+        // Panes are fixed (TOP / BOTTOM, set once in onCreate) — never
+        // reassign their crops, and never rewrite their labels (the
+        // layout already says 通道1 · 枪机镜头（上半）/ 通道2 · 球机镜头（下半）).
     }
 
     /** Plays the RTMP URL: main pane immediately, the two muted PiPs only
@@ -857,11 +882,121 @@ class LiveActivity : AppCompatActivity() {
         }
     }
 
+    /** v1.2.6 (issue 5): background/foreground recovery. There was no
+     * onPause/onResume at all — after a background stay the players
+     * sat on a possibly expired RTMP address (40 s cache) showing the
+     * last frozen frame, and nothing ever recovered them; the user had
+     * to exit and re-enter. Now: pause playback in background (same
+     * pause()/resume() the pause button uses), and on return resume
+     * fast; if the background was long the address is likely dead so
+     * we re-fetch immediately, otherwise we resume and verify within
+     * 2 s that the position is actually advancing — if not, the relay
+     * dropped the connection while we were away, so re-fetch. The
+     * user never has to exit and re-enter. */
+    override fun onPause() {
+        super.onPause()
+        // v1.2.6 (issue 4): keep the home-page thumbnail fresh — save
+        // the current frame before the surface goes away.
+        saveLastFrame()
+        stopFrameRefresh()
+        bgPauseWallMs = SystemClock.elapsedRealtime()
+        bgPausePositionMs = try { player.timeMs } catch (_: Exception) { -1L }
+        resumeCheckTask?.let { uiHandler.removeCallbacks(it) }
+        resumeCheckTask = null
+        if (!livePaused) {
+            try { player.pause() } catch (_: Exception) {}
+            try { pipTop.pause() } catch (_: Exception) {}
+            try { pipBottom.pause() } catch (_: Exception) {}
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // User paused via the pause button: leave it paused.
+        if (livePaused) return
+        // First onResume after onCreate: onCreate already started the
+        // load (connect / requestVideo) — nothing to recover yet.
+        if (bgPauseWallMs == 0L) {
+            startFrameRefresh()
+            return
+        }
+        val bgMs = SystemClock.elapsedRealtime() - bgPauseWallMs
+        if (bgMs > 30_000 || rtmpAddr.isNullOrBlank()) {
+            // Long background: the 40 s RTMP address cache has likely
+            // expired. Fetch a fresh address instead of playing a dead
+            // URL (playing the old one shows the frozen last frame).
+            DebugLog.log("UI", "回前台：后台 ${bgMs}ms，地址可能过期，重新取流")
+            triedFallback = false
+            playErrored = false
+            ws.clearVideoCache()
+            requestVideo()
+            startFrameRefresh()
+            return
+        }
+        // Short background: resume and verify frames are flowing.
+        try { player.resume() } catch (_: Exception) {}
+        try { pipTop.resume() } catch (_: Exception) {}
+        try { pipBottom.resume() } catch (_: Exception) {}
+        startFrameRefresh()
+        val resumePos = try { player.timeMs } catch (_: Exception) { -1L }
+        val check = Runnable {
+            if (isFinishing || livePaused) return@Runnable
+            val nowPos = try { player.timeMs } catch (_: Exception) { -1L }
+            // A healthy live stream advances ~2000 ms in 2 s. If it
+            // barely moved, the relay dropped the connection while we
+            // were away — re-fetch a fresh address.
+            val advanced = if (resumePos >= 0 && nowPos >= 0) nowPos - resumePos else -1L
+            if (advanced < 1000) {
+                DebugLog.log("UI", "回前台：2秒后位置仅前进 ${advanced}ms，流已停，重新取流")
+                triedFallback = false
+                playErrored = false
+                ws.clearVideoCache()
+                requestVideo()
+            }
+        }
+        resumeCheckTask = check
+        uiHandler.postDelayed(check, 2000)
+    }
+
+    /** v1.2.6 (issue 4): save the big view's current full frame for the
+     * home-page thumbnails. No-op before the first frame (bitmap null).
+     * The store splits it into gun/ball halves and writes JPEGs off
+     * the UI thread. */
+    private fun saveLastFrame() {
+        if (!::player.isInitialized) return
+        player.snapshot { bitmap ->
+            if (bitmap != null) LastFrameStore.save(this, sn, bitmap)
+        }
+    }
+
+    /** v1.2.6 (issue 4): refresh the saved frame every 30 s while the
+     * live page is in the foreground, so the home page shows a recent
+     * frame even if the user never leaves via onPause cleanly. */
+    private fun startFrameRefresh() {
+        stopFrameRefresh()
+        val task = object : Runnable {
+            override fun run() {
+                if (isFinishing) return
+                saveLastFrame()
+                uiHandler.postDelayed(this, 30_000)
+            }
+        }
+        frameRefreshTask = task
+        uiHandler.postDelayed(task, 30_000)
+    }
+
+    private fun stopFrameRefresh() {
+        frameRefreshTask?.let { uiHandler.removeCallbacks(it) }
+        frameRefreshTask = null
+    }
+
     override fun onDestroy() {
         try { unregisterReceiver(micTestReceiver) } catch (_: Exception) {}
         try {
             pipStartTask?.let { uiHandler.removeCallbacks(it) }
             watchdogTask?.let { uiHandler.removeCallbacks(it) }
+            resumeCheckTask?.let { uiHandler.removeCallbacks(it) }
+            stopFrameRefresh()
             player.onFirstFrame = null
         } catch (_: Exception) {}
         try {

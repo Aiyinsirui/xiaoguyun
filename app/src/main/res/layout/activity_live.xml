@@ -8,27 +8,33 @@
     android:background="@color/bg_page"
     android:orientation="vertical">
     <!-- 黑色视频区顶部栏 -->
+    <!-- v1.2.6: top bar follows the light theme (white + dark text,
+         actions in primary blue) instead of the old pure-black bar
+         that clashed with the v1.2.5 light UI. Elements and click
+         behaviour unchanged; hidden in fullscreen as before. -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="48dp"
-        android:background="@color/video_black" android:orientation="horizontal"
+        android:background="@color/white" android:orientation="horizontal"
         android:gravity="center_vertical">
         <Button android:id="@+id/btnBackLive" android:layout_width="48dp"
             android:layout_height="48dp" android:background="?attr/selectableItemBackgroundBorderless"
-            android:text="@string/live_back" android:textColor="@color/white"
+            android:text="@string/live_back" android:textColor="@color/text_primary"
             android:textSize="26sp" android:textStyle="bold" android:textAllCaps="false" />
         <TextView android:id="@+id/tvTitle" android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:gravity="center"
-            android:textSize="18sp" android:textStyle="bold" android:textColor="@color/white" />
+            android:textSize="18sp" android:textStyle="bold" android:textColor="@color/text_primary" />
         <Button android:id="@+id/btnShareLive" android:layout_width="wrap_content"
             android:layout_height="48dp" android:background="?attr/selectableItemBackgroundBorderless"
             android:paddingStart="12dp" android:paddingEnd="12dp"
-            android:text="@string/live_share" android:textColor="@color/white"
+            android:text="@string/live_share" android:textColor="@color/primary"
             android:textSize="14sp" android:textAllCaps="false" />
         <Button android:id="@+id/btnSettingsLive" android:layout_width="wrap_content"
             android:layout_height="48dp" android:background="?attr/selectableItemBackgroundBorderless"
             android:paddingStart="12dp" android:paddingEnd="12dp"
-            android:text="@string/live_settings" android:textColor="@color/white"
+            android:text="@string/live_settings" android:textColor="@color/primary"
             android:textSize="14sp" android:textAllCaps="false" />
     </LinearLayout>
+    <View android:layout_width="match_parent" android:layout_height="1dp"
+        android:background="@color/border" />
     <FrameLayout android:id="@+id/videoContainer" android:layout_width="match_parent"
         android:layout_height="220dp"
         android:background="@color/video_black" android:gravity="center" />
