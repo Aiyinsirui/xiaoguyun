@@ -258,7 +258,11 @@ libVLC（v1.2.2 用 Media3 播放 + RtmpRecorder 直存替代），且只保留 
 6. `TYPE_BUILTIN_BACK_MIC`(API31=27) 在 android-34 平台 jar 编译不可见，用字面量 27。
 7. PowerShell 5 不支持 `&&`、不能用 cmd /c、.ps1 可能被执行策略拦截，优先 .cmd。
 8. git 命令加 `--no-pager`；只在用户明确要求时提交/推送；不推 main。
-9. **本机直推 GitHub 会卡死**（git-remote-https 的 TCP 连接停在 Bound 无远端，10 分钟无数据）。
+9. **本机直推 GitHub 会卡死 — 真实根因已查明（2026-11-24）**：不是网络，是 Git 凭据助手
+   `git-credential-manager get` 挂起。该进程由 `git push` 拉起，在无 GUI 可见的会话里等待凭据
+   输入，空转 11 小时、累计 CPU 645 秒，`git` 因此一直阻塞（表象为 TCP 停在 Bound）。
+   处理：`Stop-Process` 杀掉即可，无副作用；推送仍走服务器中转。
+   **以后不要在本机直接 push 该仓库**，否则又会拉起同一个挂起进程。
    可行路径：`git bundle create` 打包分支 → scp 到新加坡服务器 → 服务器上 clone bundle 后
    用 GIT_ASKPASS（token 运行时从服务器交接文档 grep，脚本用完即删）推 GitHub。
    中转脚本模板在本机 `.toolchain/push-relay.sh`（仓库外，不含 token）。
@@ -324,8 +328,10 @@ libVLC（v1.2.2 用 Media3 播放 + RtmpRecorder 直存替代），且只保留 
 6. **清晰度回归**：流畅↔高清往返，三画面分辨率与按钮文案一致。
 7. **对讲机械链路**：`adb shell input swipe` 模拟按住 7 秒 → 主麦路由、Publish.Start、326 帧、
    峰值 541→AGC 后 4240；底噪不放大符合门限设计。**人声端到端仍缺（需用户配合）。**
-8. **首轮推送尝试失败**：本机 `git push` 卡死 10 分钟（`Get-NetTCPConnection` 显示连接停在 Bound、
-   无远端地址）→ 杀进程 → 改 **bundle + 服务器中转** 方案，成功。
+8. **首轮推送尝试失败**：本机 `git push` 卡死 10 分钟 → 杀进程 → 改 **bundle + 服务器中转**，成功。
+   事后（11-24）复查进程列表才发现真凶：`git-credential-manager get` 残留进程从 22:43 挂到次日、
+   CPU 累计 645 秒，即"卡死"其实是凭据弹窗在无界面会话里永远等不到输入。已 `Stop-Process` 清理。
+   教训：本机 git 操作卡住时先看 `Get-Process git-credential-manager`，不要只盯网络状态。
 9. **中转脚本踩坑**：第一版用 `git clone <bundle>` + `git push` 失败（bundle clone 后没有本地分支，
    `-u origin <branch>` refspec 找不到）；改为 `git init` + `fetch refs/heads/*:refs/remotes/bundle/*`
    + `checkout -b` 后推送成功；同时加 `trap ... EXIT` 保证清理，避免 `set -e` 中断导致残留。
