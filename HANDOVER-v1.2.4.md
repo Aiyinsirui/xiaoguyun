@@ -296,9 +296,12 @@ libVLC（v1.2.2 用 Media3 播放 + RtmpRecorder 直存替代），且只保留 
 - `apksigner verify --print-certs` 通过：签名者证书 `CN=Android Debug`，
   SHA-256 `6f411583767986c50636fe1903e8da691ac4bc80f06f1133746787bbf3a658b0`，
   与 debug 包同一证书 → 可覆盖安装平板现有版本。
-- **真机未验证（诚实标注）**：打包时平板 adb 已离线（`adb devices` 空、`adb mdns services` 无发现），
-  release 包本轮仅完成构建 + 签名核验；下次设备可用时执行
-  `adb install -r app-release.apk` 做一次冒烟（重点看三画面出流、补光灯、录像）。
+- **真机冒烟（2026-11-24 19:56，平板恢复连接后完成）**：
+  `adb install -r dist/xiaoguyun-1.2.4-release.apk` 成功覆盖安装（同证书）；
+  核验 `versionCode=16 / versionName=1.2.4 / arm64-v8a`，`flags=0x0` 无 DEBUGGABLE 位（确为 release 变体，
+  反证 MicSelfTest 导出广播未注册）；启动后正常进入设备列表，"前门"设备在线（SN 6903100004381032），
+  `debug.log` 在 release 下仍正常写入。
+  **后续功能回归由用户在平板上手动进行**：三画面出流、补光灯开关/5 分钟自动关、录像 FLV、清晰度切换、对讲人声。
 
 ### 推送记录
 - 分支 `v1.2.4-led-recording-ui`，不推 main、不建 Release；远端与本机该分支保持同步，
