@@ -155,22 +155,52 @@
    原来把参数包成 `{"data":{"data":"<param>"}}`，按原版改为裸字符串 `"data":"<param>"`，
    用 sendRaw 直发完整帧，返回 Boolean。
 
+### 3.7 APK 体积分析：为什么 release 只有 6.1 MB（旧构建约 87 MB）
+
+**结论先说**：87 MB 那版把 `org.videolan.android:libvlc-all:3.6.0`（约 78 MB 的 AAR，
+内置 arm64-v8a / armeabi-v7a / x86 / x86_64 四套 VLC 原生 .so）打进了包；当前版本已彻底移除
+libVLC（v1.2.2 用 Media3 播放 + RtmpRecorder 直存替代），且只保留 2 个 ABI，
+所以体积从约 87 MB 降到 6.1 MB。**功能不是被裁掉，而是换成了更小的实现。**
+
+实测拆包（`dist/xiaoguyun-1.2.4-release.apk`，6,105,805 字节）：
+
+| 组成 | 原始字节 | 压缩后 | 说明 |
+|---|---|---|---|
+| `classes.dex` | 7,734,660 | 3,193,235 | Media3/OkHttp/Gson/Kotlin 标准库，未开 R8 混淆压缩 |
+| `classes2.dex` | 6,208,372 | 2,152,781 | 同上（dex 超 64K 方法数自动分包） |
+| `resources.arsc` | 315,656 | 315,656 | 资源索引，APK 中强制不压缩 |
+| `res/`（388 个文件） | ~291,601 | — | 布局/图片/多语言 |
+| `lib/arm64-v8a/librtmp-jni.so` | 92,072 | 92,072 | 唯一保留的原生库：RTMP 推流 JNI |
+| `lib/armeabi-v7a/librtmp-jni.so` | 67,168 | 67,168 | 同上，32 位 ABIs |
+| 其余（manifest/META-INF/assets） | ~15 KB | — | — |
+
+要点：
+1. **原生库只有 159 KB**。对比旧包：libVLC 的 .so 单架构就有 20 MB 级、四架构合计约 78 MB，
+   这是 87 MB 的绝对主因。
+2. **dex 原始 13.9 MB、压缩后 5.3 MB**，占了本包 87% 的体积。原因是 `isMinifyEnabled = false`
+   （release 未开 R8），三方库代码全量保留。若将来要再瘦身：开 R8 + `shrinkResources`，
+   预计可降到 3~4 MB，但需要回归测试反射/Gson 模型，**本轮刻意不做**（稳定性优先）。
+3. `abiFilters` 只有 `arm64-v8a` + `armeabi-v7a`；平板是 arm64，x86 模拟器包不参与。
+4. 包内没有 assets 视频/模型等大文件，也没有多套 ABI 的重复原生库。
+
 ---
 
 ## 4. 关键文件清单
 
 | 文件 | 本轮改动 |
 |---|---|
-| `app/build.gradle.kts` | 版本 15/1.2.3 → 16/1.2.4 |
+| `app/build.gradle.kts` | 版本 15/1.2.3 → 16/1.2.4；release 复用 handover 签名；开启 buildConfig |
 | `ui/IntercomManager.kt` | 去强制扬声器、setPreferredDevice 主麦、接入 AudioGain、路由日志 |
 | `audio/AudioGain.kt` | 新增：软件 AGC（gateRms=120，增益 1~12，软限幅） |
-| `audio/MicSelfTest.kt` | 新增（临时诊断工具，**发布前移除广播注册**） |
+| `audio/MicSelfTest.kt` | 新增（诊断工具，广播注册已用 `BuildConfig.DEBUG` 门控，仅 debug 生效） |
 | `player/RtmpRecorder.kt` | 修 app/playName 切分；全链路日志；FLV 写入逻辑不变 |
 | `ws/WsClient.kt` | 清晰度常量交换；sendLed/requestLedState（查询走 runWhenSubscribed 门控）；M4 修 code 53 帧 |
 | `ui/LiveActivity.kt` | 补光灯（回包/查询超时兜底/发送失败保护/5 分钟自动关）、按钮视觉反馈、默认流畅、MicSelfTest 注册、P2 权限回调 |
 | `ui/DeviceListActivity.kt` | M12：onResume 返回自动刷新（首次不重复） |
 | `ui/LoginActivity.kt` | P1：找回密码模式重发验证码走 10012 |
 | `res/layout(-land)/activity_live.xml` | 补光灯按钮、分区、文案精简、对讲主按钮样式 |
+| `.gitignore` | 白名单放行 `dist/*.apk`（release 包随分支交付，本地 build 输出仍忽略） |
+| `dist/xiaoguyun-1.2.4-release.apk` | 随分支交付的 release 安装包（不建 GitHub Release） |
 
 ---
 
@@ -269,6 +299,59 @@
 ### 推送记录
 - 分支 `v1.2.4-led-recording-ui`，不推 main、不建 Release；远端与本机该分支保持同步，
   关键提交链：c534b43（功能集）→ b6809b3（补光灯门控修复）→ 2d01a0e（回归记录）
-  → c819c54（审计四项清理），其后为文档同步提交。
+  → c819c54（审计四项清理）→ c3c5e5e（release 签名/门控/APK）→ 其后为文档同步提交。
 - 本机直推 GitHub 卡死（见踩坑 9），改用 bundle + 新加坡服务器中转；服务器侧临时 askpass
   脚本与 bundle 用完即删（已 ls 核验），token 未出现在任何提交/文档/本机磁盘中。
+
+---
+
+## 8. 接手后操作流水（按时间顺序，含失败尝试）
+
+> 这一章记录"实际做了什么"，方便下一位复现或跳过弯路。全部在本机 `d:\Dev\tare\xiaoguyun` 下完成。
+
+1. **读服务器交接材料**：ssh 到新加坡服务器 `grep` 交接文档，取 GitHub 仓库地址与 token 使用方式
+   （token 只在内存/临时 askpass 中使用，未落盘、未写进任何文件）。原版反编译源码在
+   `/root/daguyun/jadx-out/`，用于比对补光灯协议。
+2. **补光灯实现**：WsClient 补 `sendLed`（原 TODO）+ `requestLedState`；LiveActivity 加按钮、回包处理、
+   5 分钟自动关；两布局各加 `btnFillLight`。
+3. **首次真机验证 → 发现两个缺陷**：
+   - 进页面 led=3 查询被静默丢弃（`sendRaw` 未连接只写日志返回 false）→ 改 `runWhenSubscribed` 门控；
+   - 回包无兜底 → 加 8 秒 `ledQueryTimeout` + 手动切换检查 `sendLed` 返回值。
+   修复后实测：查询回 ok led=1、手动 0/1 均回 ok、按钮紫/琥珀翻转正确。
+4. **页面验证**：横屏（默认）截图比对；用 `settings put system user_rotation 0` 切竖屏，
+   uiautomator dump 确认四个分区标题与全部控件存在，随后恢复自动旋转。
+5. **录像回归**：15 秒录像 → 675 tag / 1,448,640 字节，自写解析器验证 PreviousTagSize 自洽、精确 EOF。
+6. **清晰度回归**：流畅↔高清往返，三画面分辨率与按钮文案一致。
+7. **对讲机械链路**：`adb shell input swipe` 模拟按住 7 秒 → 主麦路由、Publish.Start、326 帧、
+   峰值 541→AGC 后 4240；底噪不放大符合门限设计。**人声端到端仍缺（需用户配合）。**
+8. **首轮推送尝试失败**：本机 `git push` 卡死 10 分钟（`Get-NetTCPConnection` 显示连接停在 Bound、
+   无远端地址）→ 杀进程 → 改 **bundle + 服务器中转** 方案，成功。
+9. **中转脚本踩坑**：第一版用 `git clone <bundle>` + `git push` 失败（bundle clone 后没有本地分支，
+   `-u origin <branch>` refspec 找不到）；改为 `git init` + `fetch refs/heads/*:refs/remotes/bundle/*`
+   + `checkout -b` 后推送成功；同时加 `trap ... EXIT` 保证清理，避免 `set -e` 中断导致残留。
+10. **审计遗留清理**：M12（onResume 首次跳过）、P1（找回密码短信类型）、P2（权限回调，有意不自动开对讲）、
+    M4（code 53 帧 data 改裸字符串）。M12 真机验证：启动 1 次请求、返回再 1 次。
+11. **release 打包**：release 原无签名 → 复用 handover 签名；AGP 8.2 默认不出 BuildConfig →
+    `buildFeatures.buildConfig = true`；MicSelfTest 广播改 `if (BuildConfig.DEBUG)`；
+    `assembleRelease` + `assembleDebug` 成功；`apksigner verify` 核验证书。
+12. **交付方式**：`.gitignore` 加 `!dist/`、`!dist/*.apk` 白名单，release APK 放 `dist/` 随分支推送；
+    工作区根目录与仓库内各存一份本文档。
+
+## 9. 关键决策与理由（为什么这么做）
+
+1. **对讲不强制开扬声器**：HAL 证据表明 `MODE_IN_COMMUNICATION` + 扬声器开会把麦克风路由到
+   BACK_MIC（-60 dBFS）；改为 `setPreferredDevice(BUILTIN_MIC)`，牺牲"免提外放"换取可靠上行。
+2. **AGC 门限 120**：环境底噪 RMS 14~20，门限 180 会吞掉正常说话起始段；120 只压真静音。
+3. **补光灯查询走订阅门控而不是 sleep**：sleep 依赖时序，弱网必错；`runWhenSubscribed`
+   以服务端 ack 为准，最多等 3 秒，语义正确。
+4. **权限授予后不自动开对讲**：按住说话模型下，系统权限弹窗关闭时手指已抬起，
+   自动 start 没有配对的 ACTION_UP，会让麦克风一直开着（隐私+流量风险），故只 Toast 提示。
+5. **MicSelfTest 门控而非删除**：人声端到端验证还没做，debug 包需要这个诊断入口；
+   release 用 `BuildConfig.DEBUG` 排除，兼顾"正式包不暴露导出广播"与"调试可用"。
+6. **release 复用 debug 证书**：内测阶段唯一目的是覆盖平板现有安装、便于回归；
+   仓库内不含密钥（local.properties gitignore，keystore 在 `.handover-ssh/`）。
+   **上线渠道分发前应换正式签名**，否则与调试证书绑定。
+7. **不推 main、不建 Release**：用户明确约束；APK 通过 `dist/` 目录随分支交付。
+8. **不开 R8**：可再省约 2 MB，但反射/Gson 模型有回归风险，本轮以稳定优先（见 3.7）。
+9. **FLV 不转封装**：摄像头原生推 0x1C 增强 FLV，转封装需重编码/重写 tag，收益低、风险高；
+   先观察用户播放器兼容性。
