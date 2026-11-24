@@ -27,8 +27,8 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -59,7 +59,6 @@ class LiveActivity : AppCompatActivity() {
     private var recorder: RtmpRecorder? = null
     private lateinit var intercom: IntercomManager
     private lateinit var tvStatus: TextView
-    private lateinit var btnExitFullscreen: Button
     private lateinit var sn: String
     private var netType: String? = null
     // Default wire value 0 = high (v1.2.7: the user asked for HD by
@@ -164,6 +163,11 @@ class LiveActivity : AppCompatActivity() {
     private val PRESET_HOME_WAIT_MS = 5000L
 
     private var isFullscreen = false
+    // v1.2.9 local 180° flip (画面翻转): display-only, applied by
+    // the player as a transform. No camera flip command is sent
+    // (the detail page's camera-side flip stays untouched, so the
+    // picture can never be flipped twice). Restored on rotation.
+    private var flip180 = false
     // v1.2.5: live paused via the control bar (watchdog skips recovery while paused).
     private var livePaused = false
 
@@ -220,21 +224,10 @@ class LiveActivity : AppCompatActivity() {
             .getOrDefault(LiveMode.FULL)
         player.crop = modeCrop(mode)
         setupChannelStrip()
-        // v1.2.2: floating "退出全屏" — the old fullscreen hid every
-        // button, so the only exit was tapping the video (and a tap with
-        // any movement became a PTZ swipe instead). This button is
-        // visible only in fullscreen; BACK also exits fullscreen now.
-        btnExitFullscreen = Button(this).apply {
-            text = "退出全屏"
-            visibility = View.GONE
-            background = ContextCompat.getDrawable(this@LiveActivity, R.drawable.bg_btn_primary_capsule)
-            setTextColor(Color.WHITE)
-            setOnClickListener { if (isFullscreen) toggleFullscreen() }
-        }
-        videoContainer.addView(btnExitFullscreen, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
-            android.view.Gravity.BOTTOM or android.view.Gravity.END
-        ).apply { setMargins(0, 0, dp(8), dp(8)) })
+        // v1.2.9: the old floating blue "退出全屏" button is gone —
+        // the fullscreen overlay (land layout, fsOverlay) now carries
+        // the back button (top-left), the frosted-glass X (top-right)
+        // and the bottom action row. BACK still exits fullscreen.
         // v1.2.2: the player is ExoPlayer + FlvEnhancedExtractor now; if it
         // still errors on this stream, the sub-stream is often a different
         // codec, so on the first playback error automatically retry with
@@ -351,12 +344,7 @@ class LiveActivity : AppCompatActivity() {
             ws.clearVideoCache()
             requestVideo()
         }
-        val btnMute = findViewById<Button>(R.id.btnMute)
-        btnMute.setOnClickListener {
-            muted = !muted
-            if (!intercomMutedByTalk) player.setMuted(muted)
-            btnMute.text = if (muted) getString(R.string.unmute) else getString(R.string.mute)
-        }
+        findViewById<Button>(R.id.btnMute).setOnClickListener { toggleMute() }
         // v1.2.5: pause/resume the live players (ExoRtmpPlayer.pause() /
         // resume() already existed; the watchdog skips recovery while paused).
         val btnPause = findViewById<Button>(R.id.btnPauseLive)
@@ -375,19 +363,36 @@ class LiveActivity : AppCompatActivity() {
             i.putExtra("sn", sn); i.putExtra("name", name); i.putExtra("netType", netType)
             startActivity(i)
         }
-        // v1.2.5 tool row: album (system gallery), flip (the flip controls
-        // live in the detail page), 云台 (scroll down to the PTZ card).
+        // v1.2.5 tool row: album (system gallery).
         findViewById<Button>(R.id.btnAlbumLive).setOnClickListener { AlbumHelper.openAlbum(this) }
+        // v1.2.9: 画面翻转 is a LOCAL 180° display transform now —
+        // one tap flips the picture upside down immediately, another
+        // tap restores it. It used to open the detail page (the user
+        // never saw the picture flip); no camera flip command is sent,
+        // so the picture can never be flipped twice. The detail page's
+        // camera-side flip controls are untouched.
+        flip180 = savedInstanceState?.getBoolean("flip180") == true
         findViewById<Button>(R.id.btnFlipLive).setOnClickListener {
-            val i = Intent(this, DeviceDetailActivity::class.java)
-            i.putExtra("sn", sn); i.putExtra("name", name); startActivity(i)
+            flip180 = !flip180
+            player.flip180 = flip180
+            findViewById<Button>(R.id.btnFlipLive).text =
+                if (flip180) "画面已翻转" else "画面翻转"
+            Toast.makeText(
+                this,
+                if (flip180) "画面已翻转 180°（仅本地显示）" else "画面已恢复",
+                Toast.LENGTH_SHORT,
+            ).show()
+            DebugLog.log("UI", "画面翻转本地 ${if (flip180) "180°" else "恢复"}")
         }
-        findViewById<Button>(R.id.btnPtzJump).setOnClickListener {
-            findViewById<ScrollView>(R.id.scrollControls)?.post {
-                val card = findViewById<View>(R.id.ptzCard)
-                findViewById<ScrollView>(R.id.scrollControls)?.smoothScrollTo(0, card.top)
-            }
+        // Rotation recreates the page: keep the flip (the player
+        // applies it as soon as the video size arrives).
+        if (flip180) {
+            player.flip180 = true
+            findViewById<Button>(R.id.btnFlipLive).text = "画面已翻转"
         }
+        // v1.2.9: the "云台" jump button is gone — the PTZ card is
+        // pinned at the bottom of the page now (ptzDock), so a button
+        // that scrolls to it is redundant.
         // v1.2.5 top bar: back / share / settings. Share and settings both
         // open the detail page (the share form lives there); nothing new.
         findViewById<Button>(R.id.btnBackLive).setOnClickListener { finish() }
@@ -410,80 +415,14 @@ class LiveActivity : AppCompatActivity() {
         // (VLC cannot play this stream, so its sout had nothing to
         // record). start()/stop() block on the socket, so they run on a
         // background thread and report back on the UI thread.
-        val btnRecord = findViewById<Button>(R.id.btnRecord)
-        btnRecord.setOnClickListener {
-            val rec = recorder
-            if (rec != null && rec.isRecording) {
-                btnRecord.text = "本地录像"
-                btnRecord.backgroundTintList = null
-                btnRecord.setTextColor(Color.parseColor("#111111"))
-                btnRecord.isEnabled = false
-                Thread {
-                    val f = rec.stop()
-                    recorder = null
-                    runOnUiThread {
-                        btnRecord.isEnabled = true
-                        val size = f?.length() ?: 0
-                        Toast.makeText(this, if (size > 0) "录像已保存：${f?.absolutePath}（${size / 1024} KB，可用电脑 VLC 打开）" else "录像文件为空：流一直没开始（取流失败或连接被断开）", Toast.LENGTH_LONG).show()
-                    }
-                }.start()
-            } else {
-                val addr = rtmpAddr
-                if (addr.isNullOrBlank()) {
-                    Toast.makeText(this, "还没有直播地址", Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
-                }
-                val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-                val dir = File(getExternalFilesDir(Environment.DIRECTORY_MOVIES), "xiaoguyun")
-                val out = File(dir, "live_${sn}_$stamp.flv")
-                btnRecord.isEnabled = false
-                Thread {
-                    val newRec = RtmpRecorder(addr, out)
-                    val ok = newRec.start()
-                    runOnUiThread {
-                        btnRecord.isEnabled = true
-                        if (ok) {
-                            recorder = newRec
-                            btnRecord.text = "停止录像"
-                            btnRecord.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FF5252"))
-                            btnRecord.setTextColor(Color.WHITE)
-                            Toast.makeText(this, "正在录像：${out.absolutePath}", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(this, "录像启动失败：${newRec.lastError}", Toast.LENGTH_LONG).show()
-                        }
-                    }
-                }.start()
-            }
-        }
+        // v1.2.9: extracted to toggleRecording() so the fullscreen
+        // record button calls the same logic.
+        findViewById<Button>(R.id.btnRecord).setOnClickListener { toggleRecording() }
         findViewById<Button>(R.id.btnLens).setOnClickListener { switchLens() }
         // Intercom: press-and-hold to talk (safer for echo than toggle).
-        val btnIntercom = findViewById<Button>(R.id.btnIntercom)
-        btnIntercom.setOnTouchListener { _, e ->
-            when (e.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                        != PackageManager.PERMISSION_GRANTED) {
-                        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1)
-                    } else {
-                        intercom.start()
-                        btnIntercom.text = "正在说话…（松开结束）"
-                        btnIntercom.backgroundTintList =
-                            ColorStateList.valueOf(Color.parseColor("#FF5252"))
-                        btnIntercom.setTextColor(Color.WHITE)
-                    }
-                    true
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    intercom.stop()
-                    btnIntercom.text = getString(R.string.intercom)
-                    btnIntercom.backgroundTintList =
-                        ColorStateList.valueOf(Color.parseColor("#007AFF"))
-                    btnIntercom.setTextColor(Color.WHITE)
-                    true
-                }
-                else -> true
-            }
-        }
+        // v1.2.9: extracted to bindIntercomButton() so the fullscreen
+        // intercom button gets the same press-and-hold behaviour.
+        findViewById<Button>(R.id.btnIntercom)?.let { bindIntercomButton(it) }
         // v1.2.1: explicit PTZ reset (dir=0 = home, per the original app's
         // "执行方向复位中..." button). Never sent on button release.
         findViewById<Button>(R.id.btnResetPtz).setOnClickListener {
@@ -515,26 +454,9 @@ class LiveActivity : AppCompatActivity() {
             DebugLog.log("UI", "智能追踪 ${if (trackOn) "开" else "关"} sen=$trackSen")
             Toast.makeText(this, "智能追踪已${if (trackOn) "开启" else "关闭"}", Toast.LENGTH_SHORT).show()
         }
-        findViewById<Button>(R.id.btnFillLight).setOnClickListener {
-            // Toggle like the original (VideoLiveClickControl): the reply
-            // frame (code 11) is the source of truth and re-renders the button.
-            val turnOn = !ledOn
-            if (!ws.sendLed(sn, if (turnOn) 1 else 0)) {
-                Toast.makeText(this, "信令未连接，操作失败", Toast.LENGTH_SHORT).show()
-                DebugLog.log("UI", "补光灯指令发送失败：socket 未开")
-                return@setOnClickListener
-            }
-            ledOn = turnOn
-            updateLedButton()
-            if (turnOn) {
-                ledHandler.removeCallbacks(ledAutoOff)
-                ledHandler.postDelayed(ledAutoOff, 300_000)
-            } else {
-                ledHandler.removeCallbacks(ledAutoOff)
-            }
-            DebugLog.log("UI", "补光灯手动${if (turnOn) "开" else "关"}")
-            Toast.makeText(this, "补光灯已${if (turnOn) "开启（5 分钟后自动关）" else "关闭"}", Toast.LENGTH_SHORT).show()
-        }
+        // v1.2.9: extracted to toggleFillLight() so the fullscreen LED
+        // button calls the same logic.
+        findViewById<Button>(R.id.btnFillLight).setOnClickListener { toggleFillLight() }
         refreshTrackState()
         // Query the current fill-light state (original sends led=3 on entry).
         // The query is gated on the subscribe ack inside WsClient; give the
@@ -574,6 +496,18 @@ class LiveActivity : AppCompatActivity() {
             }
         })
         videoContainer.setOnTouchListener { _, e -> gesture.onTouchEvent(e) }
+        // v1.2.9: fullscreen overlay buttons (land layout only — null
+        // in portrait, where fullscreen is never active). The overlay
+        // also forwards taps/swipes to the same gesture detector, so
+        // tap-to-exit and swipe-PTZ keep working while fullscreen.
+        findViewById<Button>(R.id.btnFsBack)?.setOnClickListener { if (isFullscreen) toggleFullscreen() }
+        findViewById<Button>(R.id.btnFsClose)?.setOnClickListener { if (isFullscreen) toggleFullscreen() }
+        findViewById<Button>(R.id.btnFsLed)?.setOnClickListener { toggleFillLight() }
+        findViewById<Button>(R.id.btnFsSnapshot)?.setOnClickListener { takeSnapshot() }
+        findViewById<Button>(R.id.btnFsRecord)?.setOnClickListener { toggleRecording() }
+        findViewById<Button>(R.id.btnFsMute)?.setOnClickListener { toggleMute() }
+        findViewById<Button>(R.id.btnFsIntercom)?.let { bindIntercomButton(it) }
+        findViewById<View>(R.id.fsOverlay)?.setOnTouchListener { _, e -> gesture.onTouchEvent(e) }
         applyFullscreen()
         // Debug-only ADB probe (MicSelfTest). EXPORTED is required because
         // `am broadcast` runs as the shell uid, not the app uid, so a
@@ -589,6 +523,7 @@ class LiveActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean("fullscreen", isFullscreen)
+        outState.putBoolean("flip180", flip180)
     }
 
     /** v1.2.2: BACK exits fullscreen first (before, it left the page). */
@@ -600,10 +535,12 @@ class LiveActivity : AppCompatActivity() {
         super.onBackPressed()
     }
 
-    /** Fullscreen = landscape + all controls hidden, video fills the screen.
-     * Tap the video (or the button) again to exit. Rotation recreates the
-     * page and re-requests the stream (a few seconds), same as rotating
-     * the phone by hand. */
+    /** Fullscreen = landscape + all controls hidden, video fills the
+     * screen (cover, no black bars). The fullscreen overlay carries
+     * the back button (top-left), the frosted-glass X (top-right) and
+     * the bottom action row. Tap the video (or BACK) to exit.
+     * Rotation recreates the page and re-requests the stream (a few
+     * seconds), same as rotating the phone by hand. */
     private fun toggleFullscreen() {
         isFullscreen = !isFullscreen
         applyFullscreen()
@@ -611,20 +548,51 @@ class LiveActivity : AppCompatActivity() {
 
     private fun applyFullscreen() {
         val controls = findViewById<View>(R.id.scrollControls)
-        val title = findViewById<View>(R.id.tvTitle)
+        val rail = findViewById<View>(R.id.controlsRail)
+        val dock = findViewById<View>(R.id.ptzDock)
+        val topBar = findViewById<View>(R.id.topBarLive)
+        val status = findViewById<View>(R.id.tvLiveStatus)
         val fsBtn = findViewById<Button>(R.id.btnFullscreen)
+        val overlay = findViewById<View>(R.id.fsOverlay)
+        val root = findViewById<View>(R.id.liveRoot)
+        val wrapper = findViewById<View>(R.id.videoWrapper)
         if (isFullscreen) {
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
             controls?.visibility = View.GONE
-            title?.visibility = View.GONE
+            rail?.visibility = View.GONE
+            dock?.visibility = View.GONE
+            topBar?.visibility = View.GONE
+            status?.visibility = View.GONE
             fsBtn?.text = "退出全屏"
-            btnExitFullscreen.visibility = View.VISIBLE
+            overlay?.visibility = View.VISIBLE
+            // Fill the screen edge to edge: clear the land root's
+            // 12dp padding and the video wrapper's top margin.
+            root?.setPadding(0, 0, 0, 0)
+            (wrapper?.layoutParams as? LinearLayout.LayoutParams)?.let { lp ->
+                if (lp.topMargin != 0) {
+                    lp.topMargin = 0
+                    wrapper.layoutParams = lp
+                }
+            }
+            player.fillScreen = true
+            syncFullscreenButtons()
         } else {
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             controls?.visibility = View.VISIBLE
-            title?.visibility = View.VISIBLE
+            rail?.visibility = View.VISIBLE
+            dock?.visibility = View.VISIBLE
+            topBar?.visibility = View.VISIBLE
+            status?.visibility = View.VISIBLE
             fsBtn?.text = "全屏"
-            btnExitFullscreen.visibility = View.GONE
+            overlay?.visibility = View.GONE
+            root?.setPadding(dp(12), dp(12), dp(12), dp(12))
+            (wrapper?.layoutParams as? LinearLayout.LayoutParams)?.let { lp ->
+                if (lp.topMargin != dp(8)) {
+                    lp.topMargin = dp(8)
+                    wrapper.layoutParams = lp
+                }
+            }
+            player.fillScreen = false
         }
         player.refit()
     }
@@ -667,13 +635,12 @@ class LiveActivity : AppCompatActivity() {
     }
 
     private fun refreshChannelStrip() {
-        // Snapshots (may be null before the first watch — placeholder stays).
-        findViewById<android.widget.ImageView>(R.id.ivChanTop)
-            .setImageBitmap(LastFrameStore.loadTop(this, sn))
-        findViewById<android.widget.ImageView>(R.id.ivChanBottom)
-            .setImageBitmap(LastFrameStore.loadBottom(this, sn))
-        findViewById<android.widget.ImageView>(R.id.ivChanFull)
-            .setImageBitmap(LastFrameStore.loadFull(this, sn))
+        // Snapshots (may be null before the first watch, or a stale
+        // black frame saved while the player was black — both show
+        // the "暂无画面" placeholder, never a bare black box).
+        setChanThumb(R.id.ivChanTop, R.id.tvChanTopEmpty, LastFrameStore.loadTop(this, sn))
+        setChanThumb(R.id.ivChanBottom, R.id.tvChanBottomEmpty, LastFrameStore.loadBottom(this, sn))
+        setChanThumb(R.id.ivChanFull, R.id.tvChanFullEmpty, LastFrameStore.loadFull(this, sn))
         // Highlight the current mode with the primary ring on its thumb.
         findViewById<View>(R.id.chanThumbTop)
             .setBackgroundResource(if (mode == LiveMode.TOP) R.drawable.bg_preview_selected else R.drawable.bg_preview)
@@ -681,6 +648,14 @@ class LiveActivity : AppCompatActivity() {
             .setBackgroundResource(if (mode == LiveMode.BOTTOM) R.drawable.bg_preview_selected else R.drawable.bg_preview)
         findViewById<View>(R.id.chanThumbFull)
             .setBackgroundResource(if (mode == LiveMode.FULL) R.drawable.bg_preview_selected else R.drawable.bg_preview)
+    }
+
+    /** One channel thumb: a real (non-black) snapshot, or the
+     * placeholder hint when there is none yet. */
+    private fun setChanThumb(ivId: Int, emptyId: Int, bmp: Bitmap?) {
+        val valid = bmp != null && !LastFrameStore.isMostlyBlack(bmp)
+        findViewById<ImageView>(ivId).setImageBitmap(if (valid) bmp else null)
+        findViewById<TextView>(emptyId).visibility = if (valid) View.GONE else View.VISIBLE
     }
 
     // ---- smart tracking helpers (v1.2.2, code 16/17) ----
@@ -706,16 +681,211 @@ class LiveActivity : AppCompatActivity() {
     }
 
     private fun updateLedButton() {
-        val btn = findViewById<Button>(R.id.btnFillLight)
-        btn.text = "补光灯：${if (ledOn) "开" else "关"}"
-        // Warm amber when on; neutral chip when off (tint cleared).
-        if (ledOn) {
-            btn.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FFB300"))
-            btn.setTextColor(Color.parseColor("#111111"))
-        } else {
-            btn.backgroundTintList = null
-            btn.setTextColor(Color.parseColor("#111111"))
+        findViewById<Button>(R.id.btnFillLight)?.let { btn ->
+            btn.text = "补光灯：${if (ledOn) "开" else "关"}"
+            // Warm amber when on; neutral chip when off (tint cleared).
+            if (ledOn) {
+                btn.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FFB300"))
+                btn.setTextColor(Color.parseColor("#111111"))
+            } else {
+                btn.backgroundTintList = null
+                btn.setTextColor(Color.parseColor("#111111"))
+            }
         }
+        // v1.2.9: the fullscreen LED button mirrors the same state.
+        findViewById<Button>(R.id.btnFsLed)?.let { btn ->
+            btn.text = "灯光"
+            if (ledOn) {
+                btn.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FFB300"))
+                btn.setTextColor(Color.parseColor("#111111"))
+            } else {
+                btn.backgroundTintList = null
+                btn.setTextColor(Color.parseColor("#111111"))
+            }
+        }
+    }
+
+    /** Fill-light toggle (code 11). Shared by the tool-row button and
+     * the fullscreen LED button. The reply frame is the source of
+     * truth and re-renders the button via updateLedButton(). */
+    private fun toggleFillLight() {
+        val turnOn = !ledOn
+        if (!ws.sendLed(sn, if (turnOn) 1 else 0)) {
+            Toast.makeText(this, "信令未连接，操作失败", Toast.LENGTH_SHORT).show()
+            DebugLog.log("UI", "补光灯指令发送失败：socket 未开")
+            return
+        }
+        ledOn = turnOn
+        updateLedButton()
+        if (turnOn) {
+            ledHandler.removeCallbacks(ledAutoOff)
+            ledHandler.postDelayed(ledAutoOff, 300_000)
+        } else {
+            ledHandler.removeCallbacks(ledAutoOff)
+        }
+        DebugLog.log("UI", "补光灯手动${if (turnOn) "开" else "关"}")
+        Toast.makeText(this, "补光灯已${if (turnOn) "开启（5 分钟后自动关）" else "关闭"}", Toast.LENGTH_SHORT).show()
+    }
+
+    /** Mute toggle. Shared by the control-bar button and the
+     * fullscreen mute button. */
+    private fun toggleMute() {
+        muted = !muted
+        if (!intercomMutedByTalk) player.setMuted(muted)
+        updateMuteButton()
+    }
+
+    private fun updateMuteButton() {
+        findViewById<Button>(R.id.btnMute)?.text =
+            if (muted) getString(R.string.unmute) else getString(R.string.mute)
+        findViewById<Button>(R.id.btnFsMute)?.let { btn ->
+            btn.text = if (muted) "已静音" else "静音"
+            if (muted) {
+                btn.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#5A5A5A"))
+                btn.setTextColor(Color.WHITE)
+            } else {
+                btn.backgroundTintList = null
+                btn.setTextColor(Color.parseColor("#111111"))
+            }
+        }
+    }
+
+    /** Local recording toggle (RtmpRecorder, .flv). Shared by the
+     * tool-row button and the fullscreen record button. start()/stop()
+     * block on the socket, so they run on a background thread. */
+    private fun toggleRecording() {
+        val rec = recorder
+        if (rec != null && rec.isRecording) {
+            recorder = null
+            updateRecordButton()
+            setRecordButtonsEnabled(false)
+            Thread {
+                val f = rec.stop()
+                runOnUiThread {
+                    setRecordButtonsEnabled(true)
+                    val size = f?.length() ?: 0
+                    Toast.makeText(
+                        this,
+                        if (size > 0) "录像已保存：${f?.absolutePath}（${size / 1024} KB，可用电脑 VLC 打开）"
+                        else "录像文件为空：流一直没开始（取流失败或连接被断开）",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }.start()
+            return
+        }
+        val addr = rtmpAddr
+        if (addr.isNullOrBlank()) {
+            Toast.makeText(this, "还没有直播地址", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+        val dir = File(getExternalFilesDir(Environment.DIRECTORY_MOVIES), "xiaoguyun")
+        val out = File(dir, "live_${sn}_$stamp.flv")
+        setRecordButtonsEnabled(false)
+        Thread {
+            val newRec = RtmpRecorder(addr, out)
+            val ok = newRec.start()
+            runOnUiThread {
+                setRecordButtonsEnabled(true)
+                if (ok) {
+                    recorder = newRec
+                    updateRecordButton()
+                    Toast.makeText(this, "正在录像：${out.absolutePath}", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "录像启动失败：${newRec.lastError}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun setRecordButtonsEnabled(enabled: Boolean) {
+        findViewById<Button>(R.id.btnRecord)?.isEnabled = enabled
+        findViewById<Button>(R.id.btnFsRecord)?.isEnabled = enabled
+    }
+
+    private fun updateRecordButton() {
+        val recording = recorder?.isRecording == true
+        findViewById<Button>(R.id.btnRecord)?.let { btn ->
+            btn.text = if (recording) "停止录像" else "本地录像"
+            if (recording) {
+                btn.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FF5252"))
+                btn.setTextColor(Color.WHITE)
+            } else {
+                btn.backgroundTintList = null
+                btn.setTextColor(Color.parseColor("#111111"))
+            }
+        }
+        findViewById<Button>(R.id.btnFsRecord)?.let { btn ->
+            btn.text = if (recording) "停止" else "录像"
+            if (recording) {
+                btn.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FF5252"))
+                btn.setTextColor(Color.WHITE)
+            } else {
+                btn.backgroundTintList = null
+                btn.setTextColor(Color.parseColor("#111111"))
+            }
+        }
+    }
+
+    /** Press-and-hold intercom on any button (tool row and fullscreen).
+     * The button shows the talking state; both buttons stay in sync. */
+    private fun bindIntercomButton(btn: Button) {
+        btn.setOnTouchListener { _, e ->
+            when (e.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                        != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1)
+                    } else {
+                        intercom.start()
+                        updateIntercomButton(true)
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    intercom.stop()
+                    updateIntercomButton(false)
+                    true
+                }
+                else -> true
+            }
+        }
+    }
+
+    private fun updateIntercomButton(talking: Boolean) {
+        findViewById<Button>(R.id.btnIntercom)?.let { btn ->
+            if (talking) {
+                btn.text = "正在说话…（松开结束）"
+                btn.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FF5252"))
+                btn.setTextColor(Color.WHITE)
+            } else {
+                btn.text = getString(R.string.intercom)
+                btn.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#007AFF"))
+                btn.setTextColor(Color.WHITE)
+            }
+        }
+        findViewById<Button>(R.id.btnFsIntercom)?.let { btn ->
+            if (talking) {
+                btn.text = "说话中"
+                btn.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FF5252"))
+                btn.setTextColor(Color.WHITE)
+            } else {
+                btn.text = "对讲"
+                btn.backgroundTintList = null
+                btn.setTextColor(Color.parseColor("#111111"))
+            }
+        }
+    }
+
+    /** Renders every fullscreen action button from the current state
+     * (called when entering fullscreen). */
+    private fun syncFullscreenButtons() {
+        updateLedButton()
+        updateMuteButton()
+        updateRecordButton()
+        updateIntercomButton(intercom.isTalking)
     }
 
     // ---- PTZ presets (v1.2.8) ----
@@ -1223,6 +1393,11 @@ class LiveActivity : AppCompatActivity() {
      * the UI thread. */
     private fun saveLastFrame() {
         if (!::player.isInitialized) return
+        // v1.2.9: never snapshot before the first frame — the
+        // TextureView is black until then, and a black snapshot must
+        // not overwrite the last good thumbnails (LastFrameStore also
+        // refuses mostly-black bitmaps).
+        if (!player.hasRenderedFrame) return
         player.snapshot { bitmap ->
             if (bitmap != null) LastFrameStore.save(this, sn, bitmap)
         }

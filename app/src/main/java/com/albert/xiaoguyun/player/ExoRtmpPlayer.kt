@@ -3,12 +3,9 @@ package com.albert.xiaoguyun.player
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Matrix
-import android.view.Gravity
 import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
-import android.widget.LinearLayout
 import com.albert.xiaoguyun.DebugLog
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -78,6 +75,28 @@ class ExoRtmpPlayer(
     enum class Crop { FULL, TOP, BOTTOM }
 
     var crop: Crop = Crop.FULL
+        set(value) {
+            if (field == value) return
+            field = value
+            refit()
+        }
+
+    /** v1.2.9 fullscreen: cover the whole container (no black bars,
+     * crop the overflow, never stretch). The container is
+     * MATCH_PARENT in fullscreen; normal mode sizes it to the
+     * video's aspect instead. */
+    var fillScreen: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            refit()
+        }
+
+    /** v1.2.9 local 180° flip (画面翻转): display-only transform,
+     * applied on top of the crop matrix. No camera command is sent
+     * (the detail page's camera-side flip stays untouched, so the
+     * picture can never be flipped twice). */
+    var flip180: Boolean = false
         set(value) {
             if (field == value) return
             field = value
@@ -170,45 +189,35 @@ class ExoRtmpPlayer(
     }
 
     /**
-     * v1.2.7 fit rewrite — the CONTAINER is sized to the video, not
-     * the other way round.
+     * v1.2.9 fit rewrite — the container's OWN measured width drives
+     * everything; the parent size is never read.
      *
-     * Root cause of the v1.2.6 landscape bug (user screenshot 3090:
-     * the gun lens rendered as a narrow ~1000px strip with big black
-     * bars left and right — i.e. the TOP half stretched vertically to
-     * the FULL height): the old code resized the TextureView INSIDE a
-     * fixed-size container and computed the crop matrix from
-     * textureView.width/height read inside a post() — a size that
-     * could still be the pre-resize (FULL) size when the crop had
-     * just changed to TOP. The matrix then fit a 640x360 region into
-     * a 640x720-sized view, and the layout-change listener did not
-     * reliably re-run it with the new size. Pixel measurement of the
-     * screenshot confirmed it: content ~1004px wide in a ~1452px
-     * container, full height — the FULL geometry with TOP content.
+     * Root cause of the v1.2.7 phone bug (user screenshots 22:09:19 /
+     * 22:09:45, 2026-11-24): the frame rendered at ~604px wide,
+     * top-left, in every mode, and switching to 特写 (BOTTOM) went
+     * fully black while the player kept rendering (debug log: video
+     * size 1920x2160, first frame, READY, no error, no rebuffer).
+     * v1.2.7 sized the container from the PARENT's size read inside a
+     * post() and capped the height at 65% of the screen; on the phone
+     * that produced a stale/transient parent size, so the container
+     * and the crop matrix disagreed with the real layout — the matrix
+     * scaled the frame small and, for BOTTOM, translated it out of
+     * the view entirely.
      *
-     * This version sizes the CONTAINER itself to the crop region's
-     * display aspect (16:9 single lens, 8:9 dual) inside the space
-     * the layout gives it, makes the TextureView MATCH_PARENT, and
-     * computes the crop matrix from the EXPLICIT target size — never
-     * from a just-read view size. The transform then only selects
-     * the crop region and scales it to fill: with the container
-     * exactly the display size there is no letterbox at all (no
-     * black bars inside the video box; leftover space is page
-     * background, not black). The matrix also applies the pixel
-     * aspect ratio on X (scaleX = ratio * s, scaleY = s) — the old
-     * code used a uniform scale, which is only correct when
-     * ratio == 1. Single-lens fills the playback width (zero side
-     * bars, at most small top/bottom bars); dual fits 8:9 with no
-     * extra black. Never stretched, never cropped (uniform scale
-     * per axis from the same s; FULL halves stay equal height).
-     *
-     * Available space: the container's parent size. When the parent
-     * is (nearly) full-screen (portrait live page, playback page)
-     * the height is capped at 65% of the screen so the video never
-     * pushes the controls off-screen; a bounded wrapper (live
-     * landscape, right rail) is smaller than the screen and is used
-     * as-is. The fit re-runs on container layout changes (rotation,
-     * fullscreen toggle), converging in one extra pass.
+     * This version cannot disagree with the layout: the container is
+     * MATCH_PARENT wide in both layouts, so its own measured width
+     * IS the available width. Normal mode sets only the height —
+     * height = width / displayAspect (16:9 single lens, 8:9 dual) —
+     * and the TextureView (MATCH_PARENT) fills it exactly; the
+     * matrix maps the crop region onto that size, so there is no
+     * letterbox and no stretch. Fullscreen (fillScreen) instead
+     * makes the container MATCH_PARENT and cover-scales the crop
+     * region onto the whole view (overflow cropped, no black bars).
+     * A local 180° flip is a post-rotate around the view centre.
+     * The fit re-runs on every container layout change, so a stale
+     * first pass is corrected as soon as the layout settles. The
+     * computed values are logged (PLAYER fit ...) so the next
+     * real-device test can verify them directly.
      */
     private fun fitViewToVideo(videoSize: VideoSize) {
         val vw = videoSize.width
@@ -222,45 +231,73 @@ class ExoRtmpPlayer(
         val videoW = vw * ratio
         val cropH = if (crop == Crop.FULL) vh.toDouble() else vh / 2.0
         val cropTop = if (crop == Crop.BOTTOM) vh / 2.0 else 0.0
-        val dm = appContext.resources.displayMetrics
-        val screenW = dm.widthPixels
-        val screenH = dm.heightPixels
-        val parent = container.parent as? View
-        var availW = parent?.width ?: 0
-        var availH = parent?.height ?: 0
-        if (availW <= 0) availW = screenW
-        if (availH <= 0) availH = screenH
-        // Full-screen parent (portrait live page, playback page):
-        // cap the height so the video never pushes the controls
-        // off-screen. A bounded wrapper (live landscape) is used as-is.
-        if (availH >= screenH * 0.95) availH = (screenH * 0.65).toInt()
-        if (availW <= 0 || availH <= 0) return
-        val scale = minOf(availW / videoW, availH / cropH)
-        val targetW = (videoW * scale).toInt()
-        val targetH = (cropH * scale).toInt()
-        if (targetW <= 0 || targetH <= 0) return
-        // Resize the CONTAINER to the video (the TextureView is
-        // MATCH_PARENT inside it), centred in its parent.
-        val lp = container.layoutParams
-        if (lp != null && (lp.width != targetW || lp.height != targetH)) {
-            lp.width = targetW
-            lp.height = targetH
-            when (lp) {
-                is FrameLayout.LayoutParams -> lp.gravity = Gravity.CENTER
-                is LinearLayout.LayoutParams -> lp.gravity = Gravity.CENTER_HORIZONTAL
+        // Own measured width first (MATCH_PARENT = full available
+        // width once laid out). Fall back to the parent's width only
+        // before the first layout; the container listener re-runs
+        // this as soon as the real size is known.
+        var containerW = container.width
+        if (containerW <= 0) {
+            containerW = (container.parent as? View)?.width ?: 0
+        }
+        if (containerW <= 0) {
+            containerW = appContext.resources.displayMetrics.widthPixels
+        }
+        if (containerW <= 0 || videoW <= 0 || cropH <= 0) return
+        if (fillScreen) {
+            val lp = container.layoutParams
+            if (lp != null && (lp.width != ViewGroup.LayoutParams.MATCH_PARENT ||
+                        lp.height != ViewGroup.LayoutParams.MATCH_PARENT)
+            ) {
+                lp.width = ViewGroup.LayoutParams.MATCH_PARENT
+                lp.height = ViewGroup.LayoutParams.MATCH_PARENT
+                container.layoutParams = lp
             }
+            // The size only settles after the layout pass; the
+            // container listener re-runs this with the real size.
+            val viewW = container.width.takeIf { it > 0 } ?: containerW
+            val viewH = container.height.takeIf { it > 0 }
+                ?: (viewW * cropH / videoW).toInt().coerceAtLeast(1)
+            // Cover: scale so the crop region fills the view; centre
+            // it, cropping the overflow on the long side.
+            val s = maxOf(viewW / videoW, viewH / cropH)
+            val tx = (viewW - videoW * s) / 2.0
+            val ty = (viewH - cropH * s) / 2.0 - cropTop * s
+            val m = Matrix()
+            m.setScale((ratio * s).toFloat(), s.toFloat())
+            m.postTranslate(tx.toFloat(), ty.toFloat())
+            if (flip180) m.postRotate(180f, viewW / 2f, viewH / 2f)
+            lastMatrix = m
+            textureView.setTransform(m)
+            DebugLog.log(
+                "PLAYER",
+                "#$instanceId fit fillScreen crop=$crop video=${vw}x$vh ratio=$ratio " +
+                    "view=${viewW}x$viewH s=${"%.3f".format(s)} flip=$flip180",
+            )
+            return
+        }
+        // Normal: width fills, height = width / displayAspect.
+        val targetH = (containerW * cropH / videoW).toInt().coerceAtLeast(1)
+        val lp = container.layoutParams
+        if (lp != null && (lp.width != ViewGroup.LayoutParams.MATCH_PARENT || lp.height != targetH)) {
+            lp.width = ViewGroup.LayoutParams.MATCH_PARENT
+            lp.height = targetH
             container.layoutParams = lp
         }
-        // Transform from the EXPLICIT target size: texture
-        // (0..vw, cropTop..cropTop+cropH) -> view (0..targetW,
-        // 0..targetH). No letterbox offsets — the container IS the
-        // display size.
-        val s = targetH / cropH
+        // Transform from the EXPLICIT container size: texture
+        // (0..vw, cropTop..cropTop+cropH) -> view (0..containerW,
+        // 0..targetH). No letterbox — the container IS the display size.
+        val s = containerW / videoW
         val m = Matrix()
         m.setScale((ratio * s).toFloat(), s.toFloat())
         m.postTranslate(0f, (-cropTop * s).toFloat())
+        if (flip180) m.postRotate(180f, containerW / 2f, targetH / 2f)
         lastMatrix = m
         textureView.setTransform(m)
+        DebugLog.log(
+            "PLAYER",
+            "#$instanceId fit crop=$crop video=${vw}x$vh ratio=$ratio " +
+                "container=${containerW}x$targetH s=${"%.3f".format(s)} flip=$flip180",
+        )
     }
 
     fun play(url: String) {

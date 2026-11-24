@@ -39,12 +39,46 @@ object LastFrameStore {
     private fun fullFile(context: Context, sn: String): File =
         File(dir(context), "${sn}_full.jpg")
 
+    /** True when the bitmap is (nearly) all black — e.g. a snapshot
+     * taken while the player had no frame yet, or while the big view
+     * was black after a mode switch. A real night (IR) frame still
+     * has road/field texture (mean luminance ~70-190 in the user's
+     * 22:09 frames), so 95% of samples below luminance 12 is a safe
+     * "no picture" test. Such a frame must never overwrite a good
+     * thumbnail or be shown as a "snapshot". */
+    fun isMostlyBlack(bmp: Bitmap?): Boolean {
+        if (bmp == null) return true
+        val w = bmp.width
+        val h = bmp.height
+        if (w <= 0 || h <= 0) return true
+        var dark = 0
+        var total = 0
+        val stepX = (w / 12).coerceAtLeast(1)
+        val stepY = (h / 12).coerceAtLeast(1)
+        var y = 0
+        while (y < h) {
+            var x = 0
+            while (x < w) {
+                val p = bmp.getPixel(x, y)
+                val l = (android.graphics.Color.red(p) +
+                    android.graphics.Color.green(p) +
+                    android.graphics.Color.blue(p)) / 3
+                if (l < 12) dark++
+                total++
+                x += stepX
+            }
+            y += stepY
+        }
+        return total > 0 && dark * 100 / total >= 95
+    }
+
     /** Split a full 640x720 frame into its two lens halves and save
-     * them, plus the whole frame. No-op when the bitmap is null or too
-     * small. File I/O runs on a background thread so the UI thread
-     * never blocks. */
+     * them, plus the whole frame. No-op when the bitmap is null, too
+     * small, or (nearly) all black — a black snapshot must never
+     * clobber the last good thumbnails. File I/O runs on a background
+     * thread so the UI thread never blocks. */
     fun save(context: Context, sn: String, full: Bitmap?) {
-        if (full == null) return
+        if (full == null || isMostlyBlack(full)) return
         val w = full.width
         val h = full.height
         if (w <= 0 || h < 2) return

@@ -12,7 +12,8 @@
          actions in primary blue) instead of the old pure-black bar
          that clashed with the v1.2.5 light UI. Elements and click
          behaviour unchanged; hidden in fullscreen as before. -->
-    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp"
+    <!-- v1.2.9: id added so fullscreen can hide the whole bar. -->
+    <LinearLayout android:id="@+id/topBarLive" android:layout_width="match_parent" android:layout_height="48dp"
         android:background="@color/white" android:orientation="horizontal"
         android:gravity="center_vertical">
         <Button android:id="@+id/btnBackLive" android:layout_width="48dp"
@@ -95,6 +96,12 @@
                         android:layout_height="64dp" android:background="@drawable/bg_preview">
                         <ImageView android:id="@+id/ivChanTop" android:layout_width="match_parent"
                             android:layout_height="match_parent" android:scaleType="fitCenter" />
+                        <!-- v1.2.9: no valid snapshot yet — show a hint,
+                             never a bare black box. -->
+                        <TextView android:id="@+id/tvChanTopEmpty" android:layout_width="match_parent"
+                            android:layout_height="match_parent" android:gravity="center"
+                            android:text="暂无画面" android:textSize="11sp"
+                            android:textColor="#8A8F9C" />
                     </FrameLayout>
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="4dp" android:gravity="center"
@@ -109,6 +116,10 @@
                         android:layout_height="64dp" android:background="@drawable/bg_preview">
                         <ImageView android:id="@+id/ivChanBottom" android:layout_width="match_parent"
                             android:layout_height="match_parent" android:scaleType="fitCenter" />
+                        <TextView android:id="@+id/tvChanBottomEmpty" android:layout_width="match_parent"
+                            android:layout_height="match_parent" android:gravity="center"
+                            android:text="暂无画面" android:textSize="11sp"
+                            android:textColor="#8A8F9C" />
                     </FrameLayout>
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="4dp" android:gravity="center"
@@ -122,6 +133,10 @@
                         android:layout_height="64dp" android:background="@drawable/bg_preview">
                         <ImageView android:id="@+id/ivChanFull" android:layout_width="match_parent"
                             android:layout_height="match_parent" android:scaleType="fitCenter" />
+                        <TextView android:id="@+id/tvChanFullEmpty" android:layout_width="match_parent"
+                            android:layout_height="match_parent" android:gravity="center"
+                            android:text="暂无画面" android:textSize="11sp"
+                            android:textColor="#8A8F9C" />
                     </FrameLayout>
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="4dp" android:gravity="center"
@@ -186,21 +201,59 @@
                         android:paddingStart="16dp" android:paddingEnd="16dp"
                         android:text="补光灯：查询中…" android:textSize="14sp"
                         android:textAllCaps="false" android:textColor="@color/text_primary" />
-                    <Button android:id="@+id/btnPtzJump" android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:background="@drawable/bg_chip"
-                        android:minWidth="0dp" android:minHeight="0dp"
-                        android:paddingStart="16dp" android:paddingEnd="16dp"
-                        android:text="云台" android:textSize="14sp"
-                        android:textAllCaps="false" android:textColor="@color/text_primary" />
+                    <!-- v1.2.9: 云台入口已删——云台常驻页面底部，工具栏里再放一个是重复。 -->
                 </LinearLayout>
             </HorizontalScrollView>
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:layout_marginTop="6dp" android:text="@string/intercom_hint"
                 android:textColor="@color/text_tertiary" android:textSize="12sp" />
+            <!-- 更多 -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="12dp" android:background="@drawable/bg_card"
+                android:orientation="vertical" android:padding="16dp">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="@string/more_title" android:textSize="16sp" android:textStyle="bold"
+                    android:textColor="@color/text_primary" />
+                <Button android:id="@+id/btnTrack" android:layout_width="match_parent"
+                    android:layout_height="48dp" android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_btn_white"
+                    android:minWidth="0dp" android:minHeight="0dp"
+                    android:text="智能追踪：查询中…" android:textSize="14sp"
+                    android:textAllCaps="false" android:textColor="@color/text_primary" />
+                <Button android:id="@+id/btnLens" android:layout_width="match_parent"
+                    android:layout_height="48dp" android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_btn_white"
+                    android:minWidth="0dp" android:minHeight="0dp"
+                    android:text="切换镜头" android:textSize="14sp"
+                    android:textAllCaps="false" android:textColor="@color/text_primary" />
+                <Button android:id="@+id/btnRetryLive" android:layout_width="match_parent"
+                    android:layout_height="48dp" android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_btn_white"
+                    android:minWidth="0dp" android:minHeight="0dp"
+                    android:text="@string/retry" android:textSize="14sp"
+                    android:textAllCaps="false" android:textColor="@color/text_primary" />
+                <Button android:id="@+id/btnCopyAddr" android:layout_width="match_parent"
+                    android:layout_height="48dp" android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_btn_white"
+                    android:minWidth="0dp" android:minHeight="0dp"
+                    android:text="复制直播地址（诊断用）" android:textSize="14sp"
+                    android:textAllCaps="false" android:textColor="@color/text_primary" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+    <!-- v1.2.9: 云台常驻底部（ptzDock）——方向盘 + 预置点区固定在页面底部，
+         不随页面滚动消失；内容比 dock 高时在 dock 内滚动。 -->
+    <LinearLayout android:id="@+id/ptzDock" android:layout_width="match_parent"
+        android:layout_height="280dp" android:orientation="vertical"
+        android:paddingStart="24dp" android:paddingEnd="24dp"
+        android:paddingTop="12dp" android:paddingBottom="12dp">
+        <View android:layout_width="match_parent" android:layout_height="1dp"
+            android:background="@color/border" />
+        <ScrollView android:layout_width="match_parent" android:layout_height="0dp"
+            android:layout_weight="1">
             <!-- 云台区：圆形方向盘 + 中央复位 -->
             <LinearLayout android:id="@+id/ptzCard" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:layout_marginTop="16dp"
+                android:layout_height="wrap_content"
                 android:background="@drawable/bg_card"
                 android:orientation="vertical" android:padding="16dp">
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -280,38 +333,6 @@
                     android:text="@string/preset_track_hint" android:textColor="#FFB300"
                     android:textSize="12sp" android:visibility="gone" />
             </LinearLayout>
-            <!-- 更多 -->
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:layout_marginTop="12dp" android:background="@drawable/bg_card"
-                android:orientation="vertical" android:padding="16dp">
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:text="@string/more_title" android:textSize="16sp" android:textStyle="bold"
-                    android:textColor="@color/text_primary" />
-                <Button android:id="@+id/btnTrack" android:layout_width="match_parent"
-                    android:layout_height="48dp" android:layout_marginTop="12dp"
-                    android:background="@drawable/bg_btn_white"
-                    android:minWidth="0dp" android:minHeight="0dp"
-                    android:text="智能追踪：查询中…" android:textSize="14sp"
-                    android:textAllCaps="false" android:textColor="@color/text_primary" />
-                <Button android:id="@+id/btnLens" android:layout_width="match_parent"
-                    android:layout_height="48dp" android:layout_marginTop="8dp"
-                    android:background="@drawable/bg_btn_white"
-                    android:minWidth="0dp" android:minHeight="0dp"
-                    android:text="切换镜头" android:textSize="14sp"
-                    android:textAllCaps="false" android:textColor="@color/text_primary" />
-                <Button android:id="@+id/btnRetryLive" android:layout_width="match_parent"
-                    android:layout_height="48dp" android:layout_marginTop="8dp"
-                    android:background="@drawable/bg_btn_white"
-                    android:minWidth="0dp" android:minHeight="0dp"
-                    android:text="@string/retry" android:textSize="14sp"
-                    android:textAllCaps="false" android:textColor="@color/text_primary" />
-                <Button android:id="@+id/btnCopyAddr" android:layout_width="match_parent"
-                    android:layout_height="48dp" android:layout_marginTop="8dp"
-                    android:background="@drawable/bg_btn_white"
-                    android:minWidth="0dp" android:minHeight="0dp"
-                    android:text="复制直播地址（诊断用）" android:textSize="14sp"
-                    android:textAllCaps="false" android:textColor="@color/text_primary" />
-            </LinearLayout>
-        </LinearLayout>
-    </ScrollView>
+        </ScrollView>
+    </LinearLayout>
 </LinearLayout>

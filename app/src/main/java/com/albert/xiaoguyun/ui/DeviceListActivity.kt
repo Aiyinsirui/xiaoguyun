@@ -496,7 +496,15 @@ class DeviceListActivity : AppCompatActivity() {
          * 4dp safety margin so entries can never overflow the card;
          * any leftover space is simply left empty, never stretched.
          * Tapping an entry opens LiveActivity in that channel's mode;
-         * tapping the card body still opens the dual view. */
+         * tapping the card body still opens the dual view.
+         * v1.2.9: the 84dp estimate can overestimate the real row
+         * width (the user's phone measured entries of 468px vs 348px
+         * in one row — the 2nd entry was clipped by the row's right
+         * edge and looked "a section shorter"). Once the row is laid
+         * out, the entries are resized to the MEASURED row width so
+         * all three are provably identical (fixed 16:9, centerCrop).
+         * The correction only touches LayoutParams sizes, so it is
+         * safe if the holder was recycled meanwhile. */
         private fun buildChannelEntries(h: Holder, d: DeviceInfo) {
             val ctx = h.itemView.context
             h.channelRows.removeAllViews()
@@ -545,6 +553,31 @@ class DeviceListActivity : AppCompatActivity() {
                     ctx.startActivity(it2)
                 }
                 row!!.addView(item)
+            }
+            // v1.2.9: correct the entry size against the real measured
+            // row width (see the doc comment above). Only resizes —
+            // no rebuild, no bitmap reload, so it cannot loop and it
+            // is harmless if this holder was recycled meanwhile.
+            h.channelRows.post {
+                val realW = h.channelRows.width
+                if (realW > 0) {
+                    val realEntryW = (realW - gapPx * (cols - 1)) / cols
+                    val realEntryH = realEntryW * 9 / 16
+                    if (kotlin.math.abs(realEntryW - entryW) > 2) {
+                        for (i in 0 until h.channelRows.childCount) {
+                            val rowView = h.channelRows.getChildAt(i)
+                                as? android.widget.LinearLayout ?: continue
+                            for (j in 0 until rowView.childCount) {
+                                val item = rowView.getChildAt(j)
+                                val lp = item.layoutParams
+                                    as? android.widget.LinearLayout.LayoutParams ?: continue
+                                lp.width = realEntryW
+                                lp.height = realEntryH
+                                item.layoutParams = lp
+                            }
+                        }
+                    }
+                }
             }
         }
     }
