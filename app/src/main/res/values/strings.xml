@@ -53,6 +53,14 @@
     <string name="ptz_title">云台控制</string>
     <string name="ptz_hint">点按转一下，按住连续转；也可以直接在画面上滑动</string>
     <string name="ptz_reset">复位</string>
+    <!-- v1.2.8 云台预置点（航位推算，存本机） -->
+    <string name="preset_title">预置点</string>
+    <string name="preset_hint">保存前先点复位，再转到目标位置，位置更准；预置点只控制球机云台，与全景/特写/双画面无关</string>
+    <string name="preset_save">保存预置点</string>
+    <string name="preset_empty">还没有预置点：把画面转到想要的位置，再点「保存预置点」</string>
+    <string name="preset_track_hint">智能追踪开启时预置点可能不准，建议先关闭追踪</string>
+    <string name="preset_delete">删除</string>
+    <string name="preset_full">预置点已满（最多 8 个），请先删除一个</string>
     <string name="more_title">更多</string>
     <string name="tool_playback">回放</string>
     <string name="tool_sdcard">内存卡</string>

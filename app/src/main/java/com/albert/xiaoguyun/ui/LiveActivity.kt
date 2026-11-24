@@ -1,6 +1,7 @@
 package com.albert.xiaoguyun.ui
 
 import android.Manifest
+import android.app.AlertDialog
 import android.content.BroadcastReceiver
 import android.content.ContentValues
 import android.content.Context
@@ -18,12 +19,14 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.provider.MediaStore
+import android.text.InputType
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.TextureView
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -39,11 +42,13 @@ import com.albert.xiaoguyun.net.TokenStore
 import com.albert.xiaoguyun.player.ExoRtmpPlayer
 import com.albert.xiaoguyun.player.RtmpRecorder
 import com.albert.xiaoguyun.util.LastFrameStore
+import com.albert.xiaoguyun.util.PtzPresetStore
 import com.albert.xiaoguyun.ws.WsClient
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
@@ -123,6 +128,41 @@ class LiveActivity : AppCompatActivity() {
     // frames stop arriving. Reset is a separate button (btnResetPtz).
     private val ptzExecutor = Executors.newSingleThreadScheduledExecutor()
     private var ptzFuture: ScheduledFuture<*>? = null
+
+    // ---- PTZ presets (v1.2.8, dead reckoning) ----
+    // The camera and the original app have no preset command and no
+    // position report, so presets live in the app only: this page
+    // accrues every PTZ move into a virtual (x, y) position in
+    // milliseconds (x>0 = right, y>0 = up), counted from the last
+    // reset. Save stores the current virtual position; go-to homes
+    // first (dir=0) and then replays the recorded legs with the same
+    // 250 ms re-send as a held direction button. The position is an
+    // estimate and drifts (motor speed is not exactly constant, and
+    // smart tracking moves the camera without the app knowing); the
+    // preset section warns about tracking. The virtual position is
+    // per page-open: it restarts at (0,0) because the camera may
+    // have moved (tracking, another app) since the last visit.
+    private var virtXMs = 0L
+    private var virtYMs = 0L
+    private var ptzPressDir = -1
+    private var ptzPressStartMs = 0L
+    // Replay state (go-to a preset).
+    private var replayActive = false
+    private var replayPreset: PtzPresetStore.Preset? = null
+    private var replayLegs: List<Pair<Int, Long>> = emptyList()
+    private var replayLegFuture: ScheduledFuture<*>? = null
+    private var replayWaitRunnable: Runnable? = null
+    private var replayLegEndRunnable: Runnable? = null
+    // How long to wait after the homing frame (dir=0) before
+    // replaying the legs. UNMEASURED ESTIMATE: the camera never
+    // reports its position, so there is no way to know when homing
+    // finished. 5 s is a conservative guess (the ball lens homes at
+    // the fixed speed=1; a near-home camera finishes in ~1-2 s, a
+    // far one may need more). If presets land short on the real
+    // device, raise this; if the wait feels needlessly long, lower
+    // it. Tune after real-device testing.
+    private val PRESET_HOME_WAIT_MS = 5000L
+
     private var isFullscreen = false
     // v1.2.5: live paused via the control bar (watchdog skips recovery while paused).
     private var livePaused = false
@@ -447,10 +487,20 @@ class LiveActivity : AppCompatActivity() {
         // v1.2.1: explicit PTZ reset (dir=0 = home, per the original app's
         // "执行方向复位中..." button). Never sent on button release.
         findViewById<Button>(R.id.btnResetPtz).setOnClickListener {
+            // v1.2.8: a manual reset also cancels a running preset
+            // replay, and the camera is home again — the virtual
+            // position restarts at (0,0).
+            cancelPresetReplay()
+            virtXMs = 0L
+            virtYMs = 0L
             ws.sendMotor(sn, WsClient.PTZ_STOP)
             DebugLog.log("UI", "点云台复位 dir=0")
             Toast.makeText(this, "执行方向复位中…", Toast.LENGTH_SHORT).show()
         }
+        // v1.2.8: PTZ presets (dead reckoning, stored in the app only).
+        findViewById<Button>(R.id.btnSavePreset).setOnClickListener { showSavePresetDialog() }
+        refreshPresetList()
+        updatePresetTrackHint()
         // v1.2.2: smart tracking (智能追踪) — the camera's own feature:
         // when on, the ball lens follows movement by itself (that is why
         // it rotates with nobody touching it). Original app: code 16
@@ -514,7 +564,11 @@ class LiveActivity : AppCompatActivity() {
                 } else {
                     if (dy > 0) WsClient.PTZ_DOWN else WsClient.PTZ_UP
                 }
+                // v1.2.8: a swipe cancels a running preset replay, and
+                // counts as one PTZ step (250 ms) for the virtual position.
+                cancelPresetReplay()
                 ws.sendMotor(sn, dir)
+                accumulatePtz(dir, 250)
                 DebugLog.log("UI", "滑动画面云台单步 dir=$dir")
                 return true
             }
@@ -647,6 +701,8 @@ class LiveActivity : AppCompatActivity() {
     private fun updateTrackButton() {
         findViewById<Button>(R.id.btnTrack).text =
             "智能追踪：${if (trackOn) "开" else "关"}"
+        // v1.2.8: the preset hint follows the tracking state.
+        updatePresetTrackHint()
     }
 
     private fun updateLedButton() {
@@ -662,10 +718,254 @@ class LiveActivity : AppCompatActivity() {
         }
     }
 
+    // ---- PTZ presets (v1.2.8) ----
+
+    /** Accrues one PTZ move into the virtual position (dead
+     * reckoning). x>0 = right, y>0 = up; durations are in ms. */
+    private fun accumulatePtz(dir: Int, ms: Long) {
+        if (ms <= 0) return
+        when (dir) {
+            WsClient.PTZ_UP -> virtYMs += ms
+            WsClient.PTZ_DOWN -> virtYMs -= ms
+            WsClient.PTZ_LEFT -> virtXMs -= ms
+            WsClient.PTZ_RIGHT -> virtXMs += ms
+        }
+        DebugLog.log("PTZ", "累计虚拟位置 dir=$dir +${ms}ms -> ($virtXMs, $virtYMs)")
+    }
+
+    /** The tracking warning under the preset section. */
+    private fun updatePresetTrackHint() {
+        findViewById<TextView>(R.id.tvPresetTrackHint)?.visibility =
+            if (trackOn) View.VISIBLE else View.GONE
+    }
+
+    /** Save the current virtual position as a named preset. */
+    private fun showSavePresetDialog() {
+        val presets = PtzPresetStore.load(this, sn)
+        if (presets.size >= PtzPresetStore.MAX_PRESETS) {
+            Toast.makeText(this, getString(R.string.preset_full), Toast.LENGTH_SHORT).show()
+            return
+        }
+        val defaultName = PtzPresetStore.nextDefaultName(this, sn)
+        val input = EditText(this).apply {
+            setText(defaultName)
+            setSelection(text.length)
+            maxLines = 1
+            inputType = InputType.TYPE_CLASS_TEXT
+            setPadding(dp(20), dp(12), dp(20), dp(12))
+        }
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.preset_save))
+            .setMessage("当前位置将保存为预置点（相对原点的方向+时长）。保存前先点复位再转到目标位置，位置更准。")
+            .setView(input)
+            .setPositiveButton("保存") { _, _ ->
+                val name = input.text.toString().trim().ifEmpty { defaultName }
+                val preset = PtzPresetStore.Preset(
+                    id = UUID.randomUUID().toString(),
+                    name = name, xMs = virtXMs, yMs = virtYMs,
+                    createdAt = System.currentTimeMillis(),
+                )
+                if (PtzPresetStore.add(this, sn, preset)) {
+                    refreshPresetList()
+                    Toast.makeText(this, "已保存预置点：$name", Toast.LENGTH_SHORT).show()
+                    DebugLog.log("PTZ", "保存预置点 $name at ($virtXMs, $virtYMs)")
+                } else {
+                    Toast.makeText(this, getString(R.string.preset_full), Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    /** Rebuilds the preset rows (name + saved time, tap to go, delete
+     * button). The delete button consumes the tap, so deleting never
+     * also triggers a go-to. */
+    private fun refreshPresetList() {
+        val container = findViewById<LinearLayout>(R.id.presetListContainer) ?: return
+        container.removeAllViews()
+        val presets = PtzPresetStore.load(this, sn)
+        if (presets.isEmpty()) {
+            container.addView(TextView(this).apply {
+                text = getString(R.string.preset_empty)
+                textSize = 12f
+                setTextColor(ContextCompat.getColor(this@LiveActivity, R.color.text_tertiary))
+                setPadding(0, dp(4), 0, dp(4))
+            })
+            return
+        }
+        val fmt = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+        for (preset in presets) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                background = ContextCompat.getDrawable(this@LiveActivity, R.drawable.bg_chip)
+                setPadding(dp(12), dp(8), dp(8), dp(8))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply { topMargin = dp(8) }
+                isClickable = true
+                setOnClickListener { goToPreset(preset) }
+            }
+            val texts = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            texts.addView(TextView(this).apply {
+                text = preset.name
+                textSize = 14f
+                setTextColor(ContextCompat.getColor(this@LiveActivity, R.color.text_primary))
+            })
+            texts.addView(TextView(this).apply {
+                text = "保存于 ${fmt.format(Date(preset.createdAt))}"
+                textSize = 12f
+                setTextColor(ContextCompat.getColor(this@LiveActivity, R.color.text_tertiary))
+            })
+            val del = TextView(this).apply {
+                text = getString(R.string.preset_delete)
+                textSize = 12f
+                setPadding(dp(12), dp(8), dp(12), dp(8))
+                setTextColor(ContextCompat.getColor(this@LiveActivity, R.color.text_secondary))
+                isClickable = true
+                setOnClickListener {
+                    if (replayPreset?.id == preset.id) cancelPresetReplay()
+                    PtzPresetStore.delete(this@LiveActivity, sn, preset.id)
+                    refreshPresetList()
+                    Toast.makeText(this@LiveActivity, "已删除预置点：${preset.name}", Toast.LENGTH_SHORT).show()
+                    DebugLog.log("PTZ", "删除预置点 ${preset.name}")
+                }
+            }
+            row.addView(texts)
+            row.addView(del)
+            // Highlight the preset a replay is currently heading to.
+            if (replayActive && replayPreset?.id == preset.id) {
+                row.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#E8F1FF"))
+            }
+            container.addView(row)
+        }
+    }
+
+    /** Go to a preset: home first (dir=0), wait for the camera to
+     * return, then replay the recorded legs. Tapping another preset
+     * cancels the running one and starts the new one. Only the PTZ
+     * frames the user already sends by hand are used (dir 0/1/2/3/4,
+     * speed 1) — no new command type is introduced. */
+    private fun goToPreset(preset: PtzPresetStore.Preset) {
+        if (!ws.isOpen()) {
+            Toast.makeText(this, "信令未连接，无法转到预置点", Toast.LENGTH_SHORT).show()
+            return
+        }
+        cancelPresetReplay()
+        replayActive = true
+        replayPreset = preset
+        // We are about to home; the virtual position restarts from home.
+        virtXMs = 0L
+        virtYMs = 0L
+        ws.sendMotor(sn, WsClient.PTZ_STOP)
+        tvStatus.text = "正在转到预置点：${preset.name}…（先回位）"
+        refreshPresetList()
+        DebugLog.log("PTZ", "转到预置点 ${preset.name} (${preset.xMs}, ${preset.yMs})，先复位")
+        val wait = Runnable {
+            if (!replayActive || replayPreset?.id != preset.id || isFinishing) return@Runnable
+            startPresetLegs(preset)
+        }
+        replayWaitRunnable = wait
+        uiHandler.postDelayed(wait, PRESET_HOME_WAIT_MS)
+    }
+
+    /** Builds the replay legs from the preset (horizontal first, then
+     * vertical; zero components skipped) and starts the first leg. */
+    private fun startPresetLegs(preset: PtzPresetStore.Preset) {
+        val legs = mutableListOf<Pair<Int, Long>>()
+        if (preset.xMs > 0) legs += WsClient.PTZ_RIGHT to preset.xMs
+        else if (preset.xMs < 0) legs += WsClient.PTZ_LEFT to -preset.xMs
+        if (preset.yMs > 0) legs += WsClient.PTZ_UP to preset.yMs
+        else if (preset.yMs < 0) legs += WsClient.PTZ_DOWN to -preset.yMs
+        replayLegs = legs
+        if (legs.isEmpty()) {
+            // Preset saved at home: the reset already put us there.
+            finishPresetReplay("已在原点")
+            return
+        }
+        tvStatus.text = "正在转到预置点：${preset.name}…"
+        startPresetLeg(0)
+    }
+
+    /** One replay leg: the same 250 ms re-send as a held direction
+     * button, for the leg's recorded duration, then the next leg. */
+    private fun startPresetLeg(index: Int) {
+        if (!replayActive || isFinishing) return
+        val (dir, durationMs) = replayLegs[index]
+        ws.sendMotor(sn, dir)
+        replayLegFuture?.cancel(true)
+        replayLegFuture = ptzExecutor.scheduleAtFixedRate(
+            { ws.sendMotor(sn, dir) }, 250, 250, TimeUnit.MILLISECONDS,
+        )
+        val end = Runnable {
+            if (!replayActive) return@Runnable
+            replayLegFuture?.cancel(true)
+            replayLegFuture = null
+            accumulatePtz(dir, durationMs)
+            if (index + 1 < replayLegs.size) {
+                startPresetLeg(index + 1)
+            } else {
+                finishPresetReplay(null)
+            }
+        }
+        replayLegEndRunnable = end
+        uiHandler.postDelayed(end, durationMs)
+    }
+
+    private fun finishPresetReplay(note: String?) {
+        val preset = replayPreset
+        replayActive = false
+        replayPreset = null
+        replayLegs = emptyList()
+        replayLegFuture?.cancel(true)
+        replayLegFuture = null
+        if (preset != null) {
+            // Exact position: the legs we just replayed.
+            virtXMs = preset.xMs
+            virtYMs = preset.yMs
+            tvStatus.text = "已转到预置点：${preset.name}" + (note?.let { "（$it）" } ?: "")
+            Toast.makeText(this, "已转到预置点：${preset.name}", Toast.LENGTH_SHORT).show()
+            DebugLog.log("PTZ", "已转到预置点 ${preset.name}")
+        }
+        refreshPresetList()
+    }
+
+    /** Stops a running preset replay (user touched PTZ, swiped the
+     * video, hit reset, tapped another preset, or the page is going
+     * away). The camera stops by itself when the frames stop
+     * arriving; nothing else is sent. The virtual position keeps
+     * whatever the replay had already accrued, so a later save is
+     * still roughly right — presets are estimates either way. */
+    private fun cancelPresetReplay() {
+        if (!replayActive) return
+        replayActive = false
+        replayPreset = null
+        replayLegs = emptyList()
+        replayLegFuture?.cancel(true)
+        replayLegFuture = null
+        replayWaitRunnable?.let { uiHandler.removeCallbacks(it) }
+        replayWaitRunnable = null
+        replayLegEndRunnable?.let { uiHandler.removeCallbacks(it) }
+        replayLegEndRunnable = null
+        tvStatus.text = "已取消转到预置点"
+        refreshPresetList()
+        DebugLog.log("PTZ", "取消预置点回放")
+    }
+
     private fun bindPtz(id: Int, dir: Int) {
         findViewById<Button>(id).setOnTouchListener { _, e ->
             when (e.action) {
                 MotionEvent.ACTION_DOWN -> {
+                    // v1.2.8: a manual PTZ press cancels a running preset
+                    // replay, and starts the hold timer for the virtual
+                    // position (dead reckoning).
+                    cancelPresetReplay()
+                    ptzPressDir = dir
+                    ptzPressStartMs = SystemClock.elapsedRealtime()
                     ws.sendMotor(sn, dir)
                     ptzFuture?.cancel(true)
                     ptzFuture = ptzExecutor.scheduleAtFixedRate(
@@ -676,6 +976,13 @@ class LiveActivity : AppCompatActivity() {
                     // v1.2.1: release ONLY stops re-sending (original app
                     // behaviour). Do NOT send dir=0 here — dir=0 is the
                     // home/reset command, not a stop.
+                    // v1.2.8: accrue the hold duration into the virtual
+                    // position (a tap is just a short hold).
+                    if (ptzPressDir == dir && ptzPressStartMs > 0) {
+                        accumulatePtz(dir, SystemClock.elapsedRealtime() - ptzPressStartMs)
+                    }
+                    ptzPressDir = -1
+                    ptzPressStartMs = 0
                     ptzFuture?.cancel(true); ptzFuture = null
                 }
             }
@@ -949,6 +1256,9 @@ class LiveActivity : AppCompatActivity() {
         try {
             watchdogTask?.let { uiHandler.removeCallbacks(it) }
             resumeCheckTask?.let { uiHandler.removeCallbacks(it) }
+            replayWaitRunnable?.let { uiHandler.removeCallbacks(it) }
+            replayLegEndRunnable?.let { uiHandler.removeCallbacks(it) }
+            replayActive = false
             stopFrameRefresh()
             player.onFirstFrame = null
         } catch (_: Exception) {}
@@ -956,7 +1266,7 @@ class LiveActivity : AppCompatActivity() {
             ledHandler.removeCallbacks(ledAutoOff)
             ledHandler.removeCallbacks(ledQueryTimeout)
         } catch (_: Exception) {}
-        try { ptzFuture?.cancel(true); ptzExecutor.shutdownNow() } catch (_: Exception) {}
+        try { ptzFuture?.cancel(true); replayLegFuture?.cancel(true); ptzExecutor.shutdownNow() } catch (_: Exception) {}
         try { if (intercom.isTalking) intercom.stop() } catch (_: Exception) {}
         try { recorder?.release() } catch (_: Exception) {}
         try { player.release() } catch (_: Exception) {}

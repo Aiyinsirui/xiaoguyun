@@ -252,6 +252,28 @@
                     <View android:layout_width="56dp" android:layout_height="56dp"
                         android:layout_margin="4dp" />
                 </LinearLayout>
+                <!-- v1.2.8: 云台预置点（航位推算，存本机）。点一个预置点先
+                     复位再按记下的方向时长自动转过去；智能追踪开着时
+                     位置可能不准。 -->
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp" android:text="@string/preset_title"
+                    android:textSize="14sp" android:textStyle="bold"
+                    android:textColor="@color/text_primary" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp" android:text="@string/preset_hint"
+                    android:textColor="@color/text_secondary" android:textSize="12sp" />
+                <Button android:id="@+id/btnSavePreset" android:layout_width="match_parent"
+                    android:layout_height="40dp" android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_btn_white"
+                    android:minWidth="0dp" android:minHeight="0dp"
+                    android:text="@string/preset_save" android:textSize="14sp"
+                    android:textAllCaps="false" android:textColor="@color/text_primary" />
+                <LinearLayout android:id="@+id/presetListContainer" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:orientation="vertical" />
+                <TextView android:id="@+id/tvPresetTrackHint" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:layout_marginTop="8dp"
+                    android:text="@string/preset_track_hint" android:textColor="#FFB300"
+                    android:textSize="12sp" android:visibility="gone" />
             </LinearLayout>
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:layout_marginTop="12dp" android:background="@drawable/bg_card"

@@ -24,8 +24,8 @@ android {
         applicationId = "com.albert.xiaoguyun"
         minSdk = 24
         targetSdk = 33
-        versionCode = 19
-        versionName = "1.2.7"
+        versionCode = 20
+        versionName = "1.2.8"
         ndk { abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a")) }
     }
     signingConfigs {
