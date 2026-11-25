@@ -284,6 +284,16 @@ class DeviceListActivity : AppCompatActivity() {
 
     private fun today(): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
+    /**
+     * 会话失效类错误：这类错误重试无意义，必须重新登录。
+     * 覆盖 401、token 过期、同账号在其它设备登录被踢、未登录。
+     */
+    private fun isSessionInvalid(e: ApiException?, msg: String): Boolean {
+        if (e?.code == 401) return true
+        val keys = listOf("其他设备", "重新登录", "登录已过期", "登录失效", "未登录", "token", "账号异常")
+        return keys.any { msg.contains(it, ignoreCase = true) }
+    }
+
     private fun loadDevices() {
         tvStatus.text = getString(R.string.loading)
         btnRetry.visibility = View.GONE; tvEmpty.visibility = View.GONE
@@ -301,13 +311,20 @@ class DeviceListActivity : AppCompatActivity() {
                 // 当天消息：消息列表 + 消息 tab 角标的数据源。
                 if (msgLoadedFor == null || msgLoadedFor == today()) loadMessagesFor(today())
             } catch (e: Exception) {
-                val msg = (e as? ApiException)?.message ?: e.message ?: "加载失败"
+                val apiEx = e as? ApiException
+                val msg = apiEx?.message ?: e.message ?: "加载失败"
+                // 会话失效（token 过期 / 同账号在别处登录被踢）时，"重试"只会再失败一次，
+                // 直接清 token 回登录页；登录页会自动带出记住的账号密码。
+                if (isSessionInvalid(apiEx, msg)) {
+                    DebugLog.log("SESSION", "会话失效：$msg（code=${apiEx?.code}），清 token 回登录页")
+                    store.clear()
+                    Toast.makeText(this@DeviceListActivity, "登录状态已失效：$msg\n请重新登录", Toast.LENGTH_LONG).show()
+                    startActivity(Intent(this@DeviceListActivity, LoginActivity::class.java))
+                    finish()
+                    return@launch
+                }
                 tvStatus.text = "加载失败：$msg"
                 btnRetry.visibility = View.VISIBLE
-                if ((e as? ApiException)?.code == 401) {
-                    store.clear()
-                    startActivity(Intent(this@DeviceListActivity, LoginActivity::class.java)); finish()
-                }
             }
         }
     }
