@@ -390,8 +390,9 @@ class LiveActivity : AppCompatActivity() {
             player.flip180 = true
             findViewById<Button>(R.id.btnFlipLive).text = "画面已翻转"
         }
-        // v1.2.9: the "云台" jump button is gone — the PTZ card is
-        // pinned at the bottom of the page now (ptzDock), so a button
+        // v1.2.9: the "云台" jump button is gone — the PTZ card sits
+        // in the same ScrollView container as the other controls
+        // (v1.2.10: no separate bottom dock any more), so a button
         // that scrolls to it is redundant.
         // v1.2.5 top bar: back / share / settings. Share and settings both
         // open the detail page (the share form lives there); nothing new.
@@ -549,7 +550,6 @@ class LiveActivity : AppCompatActivity() {
     private fun applyFullscreen() {
         val controls = findViewById<View>(R.id.scrollControls)
         val rail = findViewById<View>(R.id.controlsRail)
-        val dock = findViewById<View>(R.id.ptzDock)
         val topBar = findViewById<View>(R.id.topBarLive)
         val status = findViewById<View>(R.id.tvLiveStatus)
         val fsBtn = findViewById<Button>(R.id.btnFullscreen)
@@ -560,7 +560,6 @@ class LiveActivity : AppCompatActivity() {
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
             controls?.visibility = View.GONE
             rail?.visibility = View.GONE
-            dock?.visibility = View.GONE
             topBar?.visibility = View.GONE
             status?.visibility = View.GONE
             fsBtn?.text = "退出全屏"
@@ -580,7 +579,6 @@ class LiveActivity : AppCompatActivity() {
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             controls?.visibility = View.VISIBLE
             rail?.visibility = View.VISIBLE
-            dock?.visibility = View.VISIBLE
             topBar?.visibility = View.VISIBLE
             status?.visibility = View.VISIBLE
             fsBtn?.text = "全屏"

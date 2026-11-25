@@ -103,6 +103,10 @@ class RtmpPublisher(private val url: String) {
                 lastError = "RTMP createStream 无响应"; stop(); return false
             }
             sendPublish(parsed)
+            // v1.2.10: onMetaData right after publish, before the
+            // first audio frame — without it the camera never
+            // decodes/plays the intercom audio (see sendMetadata).
+            sendMetadata()
             true
         } catch (e: Exception) {
             lastError = e.message ?: "RTMP 连接失败"
@@ -198,6 +202,22 @@ class RtmpPublisher(private val url: String) {
         return baos.toByteArray()
     }
 
+    /** AMF0 ECMA array (type 0x08 + 4-byte BE count + key/value
+     * pairs + 00 00 09 terminator). Used by sendMetadata(). */
+    private fun amfEcmaArray(props: List<Pair<String, ByteArray>>): ByteArray {
+        val baos = ByteArrayOutputStream()
+        baos.write(0x08)
+        val count = ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
+            .putInt(props.size).array()
+        baos.write(count)
+        for ((k, v) in props) {
+            val kb = k.toByteArray(Charsets.UTF_8)
+            baos.write(kb.size shr 8); baos.write(kb.size and 0xFF); baos.write(kb); baos.write(v)
+        }
+        baos.write(byteArrayOf(0x00, 0x00, 0x09))
+        return baos.toByteArray()
+    }
+
     private fun invoke(csid: Int, txn: Double, vararg parts: ByteArray) {
         val baos = ByteArrayOutputStream()
         parts.forEach { baos.write(it) }
@@ -230,6 +250,35 @@ class RtmpPublisher(private val url: String) {
         synchronized(this) {
             writeChunk(0, 8, 0, 0x14, streamId, baos.toByteArray())
         }
+    }
+
+    /** v1.2.10 FLV onMetaData — the intercom root cause. The original
+     * app publishes mic audio with FFmpeg, whose avformat_write_header
+     * sends an onMetaData (type 0x12) after publish and before the
+     * first audio frame; this publisher never sent one. The relay
+     * accepts the publish and forwards the frames with no error, but
+     * the camera never decodes/plays without the metadata — so the
+     * phone side looked fine (frames flowing, peaks up to 32766)
+     * while the camera side stayed silent. Sent on the same chunk
+     * stream as the audio (csid 4) at timestamp 0, immediately after
+     * publish, so it always precedes the first audio frame. */
+    private fun sendMetadata() {
+        val meta = amfEcmaArray(listOf(
+            "audiocodecid" to amfNumber(7.0),
+            "audiosamplerate" to amfNumber(8000.0),
+            "audiosamplesize" to amfNumber(16.0),
+            "stereo" to amfBool(false),
+            "audiodatarate" to amfNumber(64.0),
+            "duration" to amfNumber(0.0),
+        ))
+        val baos = ByteArrayOutputStream()
+        baos.write(amfString("@setDataFrame"))
+        baos.write(amfString("onMetaData"))
+        baos.write(meta)
+        synchronized(this) {
+            writeChunk(fmt = 0, csid = 4, timestamp = 0, msgType = 0x12, streamId = streamId, payload = baos.toByteArray())
+        }
+        DebugLog.log("TALK", "已发送 onMetaData（audiocodecid=7, 8000Hz 单声道）")
     }
 
     // ---- chunk writer (fmt 0 + fmt 3 continuations) ----

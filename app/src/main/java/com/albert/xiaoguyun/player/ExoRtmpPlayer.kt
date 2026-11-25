@@ -2,7 +2,6 @@ package com.albert.xiaoguyun.player
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Matrix
 import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
@@ -92,15 +91,16 @@ class ExoRtmpPlayer(
             refit()
         }
 
-    /** v1.2.9 local 180° flip (画面翻转): display-only transform,
-     * applied on top of the crop matrix. No camera command is sent
+    /** v1.2.10 local 180° flip (画面翻转): display-only, applied by
+     * rotating the TextureView itself around the centre of the
+     * VISIBLE region (see applyFlip). No camera command is sent
      * (the detail page's camera-side flip stays untouched, so the
      * picture can never be flipped twice). */
     var flip180: Boolean = false
         set(value) {
             if (field == value) return
             field = value
-            refit()
+            applyFlip()
         }
 
     var onError: (() -> Unit)? = null
@@ -113,11 +113,15 @@ class ExoRtmpPlayer(
     private var lastUrl: String? = null
     private val instanceId = System.identityHashCode(this)
     private var lastVideoSize: VideoSize? = null
-    /** v1.2.7: the crop matrix is computed from the EXPLICIT target
-     * size (see fitViewToVideo), never from a just-read view size —
-     * so it stays valid across resizes; the layout listener below
-     * only re-applies this stored matrix. */
-    private var lastMatrix: Matrix? = null
+    /** v1.2.10: the last clip layout we applied to the TextureView
+     * (full-frame size + margins). The flip pivot is derived from
+     * these, so applyFlip() stays correct after a resize. */
+    private var lastTexW = 0
+    private var lastTexH = 0
+    private var lastMarginLeft = 0
+    private var lastMarginTop = 0
+    private var lastContainerW = 0
+    private var lastContainerH = 0
 
     /** Re-run the aspect fit (e.g. after a fullscreen toggle changes the container). */
     fun refit() {
@@ -131,15 +135,15 @@ class ExoRtmpPlayer(
         } catch (_: Exception) { -1 }
 
     init {
-        // v1.2.7: the crop matrix is derived from the explicit target
-        // size (see fitViewToVideo), so a view resize can no longer
-        // leave a stale transform behind. This listener only
-        // re-applies the stored matrix after a resize (e.g. surface
-        // recreation after background) — it never recomputes from a
-        // just-read view size (that was the v1.2.6 race).
+        // v1.2.10: no transform matrix any more (see doFit) — the
+        // TextureView is sized/positioned by layout params and the
+        // container clips it, so a resize cannot leave a stale
+        // transform behind. This listener only re-applies the flip
+        // pivot/rotation after a resize (the pivot depends on the
+        // TextureView size, which changes with the fit).
         textureView.addOnLayoutChangeListener { _, l, t, r, b, ol, ot, orr, ob ->
             if (r - l != orr - ol || b - t != ob - ot) {
-                lastMatrix?.let { textureView.setTransform(it) }
+                applyFlip()
             }
         }
         // v1.2.7: the container is sized by the fit to the video's
@@ -189,35 +193,45 @@ class ExoRtmpPlayer(
     }
 
     /**
-     * v1.2.9 fit rewrite — the container's OWN measured width drives
-     * everything; the parent size is never read.
+     * v1.2.10 fit rewrite — clip layout instead of a transform matrix.
      *
-     * Root cause of the v1.2.7 phone bug (user screenshots 22:09:19 /
-     * 22:09:45, 2026-11-24): the frame rendered at ~604px wide,
-     * top-left, in every mode, and switching to 特写 (BOTTOM) went
-     * fully black while the player kept rendering (debug log: video
-     * size 1920x2160, first frame, READY, no error, no rebuffer).
-     * v1.2.7 sized the container from the PARENT's size read inside a
-     * post() and capped the height at 65% of the screen; on the phone
-     * that produced a stale/transient parent size, so the container
-     * and the crop matrix disagreed with the real layout — the matrix
-     * scaled the frame small and, for BOTTOM, translated it out of
-     * the view entirely.
-     *
-     * This version cannot disagree with the layout: the container is
-     * MATCH_PARENT wide in both layouts, so its own measured width
-     * IS the available width. Normal mode sets only the height —
-     * height = width / displayAspect (16:9 single lens, 8:9 dual) —
-     * and the TextureView (MATCH_PARENT) fills it exactly; the
-     * matrix maps the crop region onto that size, so there is no
-     * letterbox and no stretch. Fullscreen (fillScreen) instead
-     * makes the container MATCH_PARENT and cover-scales the crop
-     * region onto the whole view (overflow cropped, no black bars).
-     * A local 180° flip is a post-rotate around the view centre.
-     * The fit re-runs on every container layout change, so a stale
-     * first pass is corrected as soon as the layout settles. The
-     * computed values are logged (PLAYER fit ...) so the next
-     * real-device test can verify them directly.
+     * Root cause of the v1.2.7–v1.2.9 phone bug (user screenshots
+     * 2026-11-24 22:09 and 2026-11-25 01:45): the frame rendered at
+     * ~604px wide, top-left, in every mode, and switching to 特写
+     * (BOTTOM) went fully black — while the player kept rendering
+     * (debug log: video size 1920x2160, first frame, READY, no error,
+     * and the fit itself logged the CORRECT container 1080x607 with
+     * s=0.563). The crop was done with a TextureView transform
+     * matrix (setScale + postTranslate). That matrix had two defects:
+     * (1) postTranslate applies the shift in texture coordinates
+     * BEFORE the scale, so passing -cropTop*s made the effective
+     * shift -cropTop*s^2 (wrong crop region); (2) the rendered width
+     * came out as containerW*s (604px = 1080*0.563) instead of
+     * containerW, i.e. the scale was effectively applied twice.
+     * The transform path failed three releases in a row, so it is
+     * gone — this version uses only layout + clipping, the way the
+     * reference camera apps lay a picture out (a view sized to the
+     * picture's aspect, the parent clips the overflow):
+     * - The TextureView is always sized to the FULL frame (width =
+     *   container width, height = width * vh / vw) and the video
+     *   fills it by default (no transform, no stretch — the aspect
+     *   matches by construction).
+     * - The container (a FrameLayout, clipChildren on) is sized to
+     *   the crop's display aspect (16:9 single lens, 8:9 dual) and
+     *   clips the TextureView to the crop region.
+     * - TOP/FULL: TextureView at top margin 0. BOTTOM: TextureView
+     *   shifted up by one half-height (negative top margin), so the
+     *   container shows the bottom half.
+     * - Fullscreen (fillScreen): the container is MATCH_PARENT and
+     *   the TextureView is cover-scaled and centred, cropping the
+     *   overflow.
+     * - Flip (flip180) rotates the TextureView 180° around the
+     *   centre of the VISIBLE region (applyFlip), so the same crop
+     *   is shown upside-down instead of swapping halves.
+     * The fit re-runs on every container layout change, and layout
+     * params are only rewritten when they actually differ, so it
+     * converges in one extra pass. Values are logged (PLAYER fit ...)
+     * so the next real-device test can verify them directly.
      */
     private fun fitViewToVideo(videoSize: VideoSize) {
         val vw = videoSize.width
@@ -260,44 +274,76 @@ class ExoRtmpPlayer(
             // Cover: scale so the crop region fills the view; centre
             // it, cropping the overflow on the long side.
             val s = maxOf(viewW / videoW, viewH / cropH)
-            val tx = (viewW - videoW * s) / 2.0
-            val ty = (viewH - cropH * s) / 2.0 - cropTop * s
-            val m = Matrix()
-            m.setScale((ratio * s).toFloat(), s.toFloat())
-            m.postTranslate(tx.toFloat(), ty.toFloat())
-            if (flip180) m.postRotate(180f, viewW / 2f, viewH / 2f)
-            lastMatrix = m
-            textureView.setTransform(m)
+            val texW = (videoW * s).toInt()
+            val texH = (vh * s).toInt()
+            val ml = ((viewW - videoW * s) / 2.0).toInt()
+            val mt = ((viewH - cropH * s) / 2.0 - cropTop * s).toInt()
+            setTextureLayout(texW, texH, ml, mt)
+            lastContainerW = viewW
+            lastContainerH = viewH
+            applyFlip()
             DebugLog.log(
                 "PLAYER",
-                "#$instanceId fit fillScreen crop=$crop video=${vw}x$vh ratio=$ratio " +
-                    "view=${viewW}x$viewH s=${"%.3f".format(s)} flip=$flip180",
+                "#$instanceId fit cover crop=$crop video=${vw}x$vh ratio=$ratio " +
+                    "view=${viewW}x$viewH tex=${texW}x$texH margin=$ml,$mt flip=$flip180",
             )
             return
         }
         // Normal: width fills, height = width / displayAspect.
         val targetH = (containerW * cropH / videoW).toInt().coerceAtLeast(1)
+        val s = containerW / videoW
+        val texW = containerW
+        val texH = (vh * s).toInt()
+        val mt = (-cropTop * s).toInt()
         val lp = container.layoutParams
         if (lp != null && (lp.width != ViewGroup.LayoutParams.MATCH_PARENT || lp.height != targetH)) {
             lp.width = ViewGroup.LayoutParams.MATCH_PARENT
             lp.height = targetH
             container.layoutParams = lp
         }
-        // Transform from the EXPLICIT container size: texture
-        // (0..vw, cropTop..cropTop+cropH) -> view (0..containerW,
-        // 0..targetH). No letterbox — the container IS the display size.
-        val s = containerW / videoW
-        val m = Matrix()
-        m.setScale((ratio * s).toFloat(), s.toFloat())
-        m.postTranslate(0f, (-cropTop * s).toFloat())
-        if (flip180) m.postRotate(180f, containerW / 2f, targetH / 2f)
-        lastMatrix = m
-        textureView.setTransform(m)
+        setTextureLayout(texW, texH, 0, mt)
+        lastContainerW = containerW
+        lastContainerH = targetH
+        applyFlip()
         DebugLog.log(
             "PLAYER",
             "#$instanceId fit crop=$crop video=${vw}x$vh ratio=$ratio " +
-                "container=${containerW}x$targetH s=${"%.3f".format(s)} flip=$flip180",
+                "container=${containerW}x$targetH tex=${texW}x$texH marginTop=$mt flip=$flip180",
         )
+    }
+
+    /** Sizes/positions the TextureView (full frame) inside the
+     * container. Only writes layout params when they actually
+     * differ, so a layout pass triggered by the change does not
+     * loop. */
+    private fun setTextureLayout(w: Int, h: Int, ml: Int, mt: Int) {
+        val lp = textureView.layoutParams as? ViewGroup.MarginLayoutParams
+            ?: ViewGroup.MarginLayoutParams(w, h)
+        if (lp.width != w || lp.height != h || lp.leftMargin != ml || lp.topMargin != mt) {
+            lp.width = w
+            lp.height = h
+            lp.leftMargin = ml
+            lp.topMargin = mt
+            textureView.layoutParams = lp
+        }
+        lastTexW = w
+        lastTexH = h
+        lastMarginLeft = ml
+        lastMarginTop = mt
+    }
+
+    /** 180° display flip: rotate the TextureView around the centre
+     * of the VISIBLE region (the container's centre, expressed in
+     * TextureView coordinates), so the same crop is shown
+     * upside-down. Rotating around the TextureView's own centre
+     * would swap the two halves. */
+    private fun applyFlip() {
+        if (lastTexW <= 0 || lastTexH <= 0 || lastContainerW <= 0 || lastContainerH <= 0) return
+        val cx = lastContainerW / 2f - lastMarginLeft
+        val cy = lastContainerH / 2f - lastMarginTop
+        textureView.pivotX = cx
+        textureView.pivotY = cy
+        textureView.rotation = if (flip180) 180f else 0f
     }
 
     fun play(url: String) {
