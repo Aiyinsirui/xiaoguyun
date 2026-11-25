@@ -92,6 +92,12 @@ class LiveActivity : AppCompatActivity() {
     // Fill light (v1.2.4, code 11 "led"). The original app auto-switches it
     // off 5 minutes after switch-on (VideoLiveActivity.ledCloseTime=300000).
     private var ledOn = false
+    // v1.2.11: debounce for the fill-light toggle. The log showed an
+    // ON at 19:53:06 followed by an OFF at 19:53:07 (1 s apart) from a
+    // single user action — a double trigger (two buttons / double tap)
+    // that made the light alternate "uncontrollably". Ignore a second
+    // toggle within 600 ms of the previous one.
+    private var lastLedToggleMs = 0L
     private val ledHandler = Handler(Looper.getMainLooper())
     private val ledAutoOff = Runnable {
         if (ledOn) {
@@ -707,6 +713,14 @@ class LiveActivity : AppCompatActivity() {
      * the fullscreen LED button. The reply frame is the source of
      * truth and re-renders the button via updateLedButton(). */
     private fun toggleFillLight() {
+        // v1.2.11: debounce — a second toggle within 600 ms is a
+        // double trigger, not a deliberate second press.
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastLedToggleMs < 600) {
+            DebugLog.log("UI", "补光灯切换防抖忽略（距上次 ${now - lastLedToggleMs}ms）")
+            return
+        }
+        lastLedToggleMs = now
         val turnOn = !ledOn
         if (!ws.sendLed(sn, if (turnOn) 1 else 0)) {
             Toast.makeText(this, "信令未连接，操作失败", Toast.LENGTH_SHORT).show()
@@ -1397,7 +1411,27 @@ class LiveActivity : AppCompatActivity() {
         // refuses mostly-black bitmaps).
         if (!player.hasRenderedFrame) return
         player.snapshot { bitmap ->
-            if (bitmap != null) LastFrameStore.save(this, sn, bitmap)
+            if (bitmap == null) return@snapshot
+            // v1.2.11: the TextureView now holds the full frame at
+            // display resolution (e.g. 2158x2427, ~21 MB). Saving it
+            // raw is slow and can OOM, so the dual-view snapshot
+            // (full.jpg) never got written — the 双画面 tile kept
+            // showing "暂无画面". Scale to 640 wide first (the store
+            // keeps 640x720 full / 640x360 halves anyway).
+            val scaled = if (bitmap.width > 640) {
+                val h = (bitmap.height * 640.0 / bitmap.width).toInt().coerceAtLeast(1)
+                try {
+                    android.graphics.Bitmap.createScaledBitmap(bitmap, 640, h, true)
+                } catch (_: Exception) {
+                    bitmap
+                }
+            } else {
+                bitmap
+            }
+            LastFrameStore.save(this, sn, scaled)
+            if (scaled !== bitmap) {
+                try { bitmap.recycle() } catch (_: Exception) {}
+            }
         }
     }
 

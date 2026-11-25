@@ -289,26 +289,40 @@ class ExoRtmpPlayer(
             )
             return
         }
-        // Normal: width fills, height = width / displayAspect.
-        val targetH = (containerW * cropH / videoW).toInt().coerceAtLeast(1)
-        val s = containerW / videoW
-        val texW = containerW
+        // v1.2.11: fit WITHIN the available space (contain) — the
+        // largest scale that fits BOTH the parent's width and height.
+        // Width-only sizing made FULL (8:9) overflow the short
+        // landscape wrapper (container 2158x2427 vs ~1000px tall) and
+        // cut the bottom half off. Now the container shrinks to fit
+        // the height in landscape (whole picture visible, centred,
+        // side space is page bg); portrait is unchanged (width binds).
+        // The container width is set explicitly (not MATCH_PARENT) so
+        // a height-bound container is narrower and centred by the
+        // wrapper's layout_gravity=center.
+        val parentView = container.parent as? View
+        val availW = containerW.toDouble()
+        val availH = (parentView?.height ?: 0).toDouble()
+        var s = availW / videoW
+        if (availH > 0) s = minOf(s, availH / cropH)
+        val targetW = (videoW * s).toInt().coerceAtLeast(1)
+        val targetH = (cropH * s).toInt().coerceAtLeast(1)
+        val texW = targetW
         val texH = (vh * s).toInt()
         val mt = (-cropTop * s).toInt()
         val lp = container.layoutParams
-        if (lp != null && (lp.width != ViewGroup.LayoutParams.MATCH_PARENT || lp.height != targetH)) {
-            lp.width = ViewGroup.LayoutParams.MATCH_PARENT
+        if (lp != null && (lp.width != targetW || lp.height != targetH)) {
+            lp.width = targetW
             lp.height = targetH
             container.layoutParams = lp
         }
         setTextureLayout(texW, texH, 0, mt)
-        lastContainerW = containerW
+        lastContainerW = targetW
         lastContainerH = targetH
         applyFlip()
         DebugLog.log(
             "PLAYER",
             "#$instanceId fit crop=$crop video=${vw}x$vh ratio=$ratio " +
-                "container=${containerW}x$targetH tex=${texW}x$texH marginTop=$mt flip=$flip180",
+                "avail=${availW.toInt()}x${availH.toInt()} container=${targetW}x$targetH tex=${texW}x$texH marginTop=$mt flip=$flip180",
         )
     }
 

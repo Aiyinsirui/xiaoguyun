@@ -62,6 +62,7 @@
     <string name="preset_delete">删除</string>
     <string name="preset_full">预置点已满（最多 8 个），请先删除一个</string>
     <string name="more_title">更多</string>
+    <string name="func_title">功能</string>
     <string name="tool_playback">回放</string>
     <string name="tool_sdcard">内存卡</string>
     <string name="tool_album">相册</string>
