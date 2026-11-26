@@ -62,7 +62,7 @@
             </LinearLayout>
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.scwang.smartrefresh.layout.SmartRefreshLayout>
-    <com.dgiot.speedmonitoring.ui.view.FloatAdsorbContainer android:id="@id/ll_contacts" android:visibility="gone" android:clickable="true" android:layout_width="100.0dip" android:layout_height="100.0dip" android:layout_marginBottom="93.0dip" app:layout_constraintTop_toTopOf="parent">
+    <com.dgiot.speedmonitoring.ui.view.FloatAdsorbContainer android:id="@id/ll_contacts" android:visibility="gone" android:alpha="0" android:clickable="true" android:layout_width="100.0dip" android:layout_height="100.0dip" android:layout_marginBottom="93.0dip" app:layout_constraintTop_toTopOf="parent">
         <LinearLayout android:gravity="center" android:orientation="vertical" android:layout_width="fill_parent" android:layout_height="fill_parent">
             <ImageView android:id="@id/iv_contacts" android:focusable="false" android:clickable="false" android:layout_width="60.0dip" android:layout_height="60.0dip" android:src="@drawable/ic_main_contacts5" />
             <TextView android:textSize="13.0dip" android:textStyle="bold" android:textColor="@color/color_65A2FF" android:gravity="center" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="官方技术客服" />

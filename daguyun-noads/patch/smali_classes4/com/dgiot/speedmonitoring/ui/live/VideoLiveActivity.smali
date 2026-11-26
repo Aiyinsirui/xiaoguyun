@@ -1160,7 +1160,13 @@
     iput-object v2, p0, Lcom/dgiot/speedmonitoring/ui/live/VideoLiveActivity;->videoSizePositionState:Ljava/util/HashMap;
 
     .line 722
+    const/4 v0, 0x0
+
     iput v0, p0, Lcom/dgiot/speedmonitoring/ui/live/VideoLiveActivity;->selectStream:I
+
+    const/4 v0, 0x1
+
+    iput v0, p0, Lcom/dgiot/speedmonitoring/ui/live/VideoLiveActivity;->curDefinition:I
 
     .line 725
     iput-object v1, p0, Lcom/dgiot/speedmonitoring/ui/live/VideoLiveActivity;->changeStreamUrl:Ljava/lang/String;

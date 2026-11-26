@@ -47,3 +47,42 @@ Drawable：
 3. **广告 View 标签要替换**：恢复原布局后 `item_videolist` 会带回 `<com.anythink.nativead.api.ATNativeView>`，必须再换成 `FrameLayout`（广告类已删，否则 `ClassNotFoundException`）。
 4. **`android:stateListAnimator` 只对 `View` 生效**：给 `FrameLayout` 根节点加可以，给 `RoundedLinearLayout` 自定义控件加要谨慎。
 5. **每次改完必须装机验证**：`adb install -r` → 冷启动 → `adb logcat -b crash`。本轮就是靠它抓到三连崩（缺 id / 类型不匹配 / 残留广告 View）。
+
+
+---
+
+## 5. 第二轮（2026-11-26 21:40–21:50）
+
+### 5.1 体积：86.4 MB → 64.8 MB
+
+| 处理 | 释放 |
+|---|---|
+| 删除 `armeabi-v7a`（18.39 MB）、`armeabi`（0.45 MB）、`x86`（1.12 MB）原生库，只保留 `arm64-v8a` | 19.96 MB |
+| 删除穿山甲残留 `libPglbizssdk_ml.so`（1.08 MB）、cj 残留 `libcjaf.so`（0.22 MB） | 1.30 MB |
+
+**不能降到 30MB 的原因**（实测拆包）：`dex` 31.3 MB（7 个 dex）、`arm64` 原生库 28.8 MB、`res` 19.5 MB。
+dex 已无法再压（未开 R8，改 smali 做不了全局混淆/裁剪）；`libprotobuf`(6.7)+`libblplayer`(5.8)+`libavcodec`(3.8)
+是设备协议与播放器，删了就不能出画面。
+
+> 另外 850 个广告 SDK 资源文件（1.68 MB）**没有删**：它们与 `public.xml` 的资源 ID 绑定，
+> 试删会连带 `styles.xml`/`arrays.xml` 一起报 `no definition for declared symbol`。为 1.68 MB 去重排资源 ID 不值得。
+
+### 5.2 广告组件到底删没删
+
+代码层：**已删除 28,328 个广告类**（TopOn/穿山甲/GDT/百青藤/倍孜/京准/趣盟/慧算/CJ/极准/开心/美数/Octopus/Taku/Growmore），
+加上 208 个清单组件、2 条权限、27 个广告 .so、广告素材目录。本轮又补删了 2 个残留广告 .so。
+现在剩下的只有：850 个纯图片/布局资源（无代码引用、不在清单、不参与渲染）。
+
+### 5.3 本轮 UI 修正
+
+1. 底部导航：改为 `wrap_content` + 水平居中 + `minWidth=420dp` + 底部 24dp（之前贴底且满宽）。
+2. 设备卡：去掉 `clipToOutline` / `elevation` / 描边 / 按压缩放，换成纯白 20dp 圆角背景，消除"白边"和圆角不匹配。
+3. 首页悬浮「官方技术客服」图标：`alpha=0` 隐藏（原本由代码强制显示）。
+4. 直播默认画质：`selectStream` 构造默认值 1 → **0（超清）**，并把 `curDefinition` 默认置 1 保持一致。
+
+### 5.4 下一步（未完成）
+
+- 设备卡按屏宽自适应列数（竖屏 1 列 / 横屏 2 列）+ 画面 16:9 等比（需要改 `DeviceVideoAdapter` 的测量逻辑）；
+- 直播页横屏主从布局（左画面 + 右控制栏）；
+- 我的/登录/设置页按同一 token 重排；
+- 客服入口从「我的」页 `rl_customer` 恢复显示（需先确认点击逻辑可用）。
