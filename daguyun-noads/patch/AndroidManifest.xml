@@ -1,0 +1,663 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:compileSdkVersion="33" android:compileSdkVersionCodename="13" package="com.dgiot.speedmonitoring" platformBuildVersionCode="33" platformBuildVersionName="13">
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+    <uses-permission android:name="android.permission.BLUETOOTH"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.WRITE_SETTINGS"/>
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <queries>
+        <package android:name="com.tencent.mm"/>
+        <package android:name="com.eg.android.AlipayGphone"/>
+        <package android:name="com.xinghe.jhxs"/>
+        <intent>
+            <action android:name="android.intent.action.MAIN"/>
+            <category android:name="android.intent.category.LAUNCHER"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <category android:name="android.intent.category.BROWSABLE"/>
+            <data android:scheme="https"/>
+        </intent>
+        <package android:name="com.jingdong.app.mall"/>
+        <package android:name="com.taobao.taobao"/>
+        <package android:name="com.xunmeng.pinduoduo"/>
+        <package android:name="com.kuaishou.nebula"/>
+        <package android:name="com.smile.gifmaker"/>
+        <package android:name="com.baidu.searchbox"/>
+        <package android:name="com.sankuai.meituan"/>
+        <package android:name="com.sankuai.meituan.takeoutnew"/>
+        <package android:name="com.aliyun.tongyi"/>
+        <package android:name="com.ss.android.article.news"/>
+        <package android:name="com.ss.android.ugc.aweme"/>
+        <package android:name="com.tencent.qqmusic"/>
+        <package android:name="com.kmxs.reader"/>
+        <package android:name="com.taobao.idlefish"/>
+        <package android:name="me.ele"/>
+        <package android:name="com.alibaba.wireless"/>
+        <package android:name="com.baidu.searchbox.lite"/>
+        <package android:name="com.taobao.litetao"/>
+        <package android:name="com.tencent.hunyuan.app.chat"/>
+        <package android:name="com.larus.nova"/>
+        <package android:name="com.qiyi.video"/>
+        <package android:name="com.kugou.android"/>
+        <package android:name="com.zhihu.android"/>
+        <package android:name="com.tmall.wireless"/>
+        <package android:name="com.tencent.qqlive"/>
+        <package android:name="com.cainiao.wireless"/>
+        <package android:name="com.quark.browser"/>
+        <package android:name="com.youku.phone"/>
+        <package android:name="com.ss.android.ugc.livelite"/>
+        <package android:name="com.ss.android.ugc.aweme.lite"/>
+        <package android:name="com.sdu.didi.psnger"/>
+        <package android:name="ctrip.android.view"/>
+        <package android:name="com.ss.android.article.lite"/>
+        <package android:name="com.greenpoint.android.mc10086.activity"/>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="http"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN"/>
+            <category android:name="android.intent.category.LAUNCHER"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <category android:name="android.intent.category.BROWSABLE"/>
+            <data android:scheme="http"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <category android:name="android.intent.category.BROWSABLE"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN"/>
+        </intent>
+        <package android:name="com.xiaomi.market"/>
+        <package android:name="com.heytap.market"/>
+        <package android:name="com.oppo.market"/>
+        <package android:name="com.bbk.appstore"/>
+        <package android:name="com.vivo.appstore"/>
+        <package android:name="com.huawei.appmarket"/>
+        <package android:name="com.hihonor.appmarket"/>
+        <package android:name="com.sec.android.app.samsungapps"/>
+        <package android:name="com.meizu.mstore"/>
+        <package android:name="com.meizu.flyme.appcenter"/>
+        <package android:name="com.tencent.android.qqdownloader"/>
+        <package android:name="com.baidu.appsearch"/>
+        <package android:name="com.qihoo.appstore"/>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="market"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="mimarket"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="oppomarket"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="oaps"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="heytapmarket"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="vivomarket"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="appmarket"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="hiapplink"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="honormarket"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="samsungapps"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="mstore"/>
+        </intent>
+        <package android:name="cmb.pb"/>
+        <package android:name="cn.com.hkgr.llsh"/>
+        <package android:name="cn.kuwo.player"/>
+        <package android:name="cn.soulapp.android"/>
+        <package android:name="cn.TuHu.android"/>
+        <package android:name="cn.wps.moffice_eng"/>
+        <package android:name="com.achievo.vipshop"/>
+        <package android:name="com.alibaba.android.rimet"/>
+        <package android:name="com.android.bankabc"/>
+        <package android:name="com.anjuke.android.app"/>
+        <package android:name="com.autonavi.minimap"/>
+        <package android:name="com.babytree.apps.pregnancy"/>
+        <package android:name="com.baidu.BaiduMap"/>
+        <package android:name="com.baidu.baidutranslate"/>
+        <package android:name="com.baidu.homework"/>
+        <package android:name="com.baidu.input"/>
+        <package android:name="com.baidu.netdisk"/>
+        <package android:name="com.baidu.tieba"/>
+        <package android:name="com.bankcomm.Bankcomm"/>
+        <package android:name="com.bankcomm.maidanba"/>
+        <package android:name="com.chaoxing.mobile"/>
+        <package android:name="com.chaozh.iReaderFree"/>
+        <package android:name="com.chinamworld.bocmbc"/>
+        <package android:name="com.chinamworld.main"/>
+        <package android:name="com.chsi.android"/>
+        <package android:name="com.citiccard.mobilebank"/>
+        <package android:name="com.cmbchina.ccd.pluto.cmbActivity"/>
+        <package android:name="com.cnpc.epetro"/>
+        <package android:name="com.coloros.weather2"/>
+        <package android:name="com.cubic.autohome"/>
+        <package android:name="com.dianping.v1"/>
+        <package android:name="com.dongchedi.app"/>
+        <package android:name="com.douban.frodo"/>
+        <package android:name="com.dragon.read"/>
+        <package android:name="com.dragon.read.audio"/>
+        <package android:name="com.dw.btime"/>
+        <package android:name="com.ecitic.bank.mobile"/>
+        <package android:name="com.eduyun.app.smarteducation"/>
+        <package android:name="com.fenbi.android.servant"/>
+        <package android:name="com.fenbi.android.smart"/>
+        <package android:name="com.gotokeep.keep"/>
+        <package android:name="com.hanweb.android.zwyy.activity"/>
+        <package android:name="com.happyelements.AndroidAnimal"/>
+        <package android:name="com.hexin.plat.android"/>
+        <package android:name="com.huawei.android.thememanager"/>
+        <package android:name="com.huawei.android.totemweather"/>
+        <package android:name="com.huawei.browser"/>
+        <package android:name="com.huawei.health"/>
+        <package android:name="com.huawei.hidisk"/>
+        <package android:name="com.huawei.himovie"/>
+        <package android:name="com.huawei.wallet"/>
+        <package android:name="com.hunantv.imgo.activity"/>
+        <package android:name="com.icbc"/>
+        <package android:name="com.iflytek.inputmethod"/>
+        <package android:name="com.immomo.momo"/>
+        <package android:name="com.intsig.camscanner"/>
+        <package android:name="com.jd.jrapp"/>
+        <package android:name="com.jg.hongguo"/>
+        <package android:name="com.jingyao.easybike"/>
+        <package android:name="com.jj.ddz"/>
+        <package android:name="com.ke.compass"/>
+        <package android:name="com.kesong"/>
+        <package android:name="com.lemon.lv"/>
+        <package android:name="com.lingan.seeyou"/>
+        <package android:name="com.luna.music"/>
+        <package android:name="com.mark.watermark"/>
+        <package android:name="com.meitu.meiyancamera"/>
+        <package android:name="com.miui.video"/>
+        <package android:name="com.MobileTicket"/>
+        <package android:name="com.mt.mtxx.mtxx"/>
+        <package android:name="com.mygolbs.mybus"/>
+        <package android:name="com.netease.cloudmusic"/>
+        <package android:name="com.netease.mobimail"/>
+        <package android:name="com.netease.newsreader.activity"/>
+        <package android:name="com.netease.party"/>
+        <package android:name="com.netease.x19"/>
+        <package android:name="com.oppo.community"/>
+        <package android:name="com.oppo.store"/>
+        <package android:name="com.ovital.ovitalMap"/>
+        <package android:name="com.pingan.carowner"/>
+        <package android:name="com.pingan.paces.ccms"/>
+        <package android:name="com.qqgame.hlddz"/>
+        <package android:name="com.Qunar"/>
+        <package android:name="com.sdu.didi.gsui"/>
+        <package android:name="com.sgcc.wsgw.cn"/>
+        <package android:name="com.shizhuang.duapp"/>
+        <package android:name="com.sina.news"/>
+        <package android:name="com.sina.weibo"/>
+        <package android:name="com.sina.weibolite"/>
+        <package android:name="com.sinovatech.unicom.ui"/>
+        <package android:name="com.snda.wifilocating"/>
+        <package android:name="com.sohu.inputmethod.sogou"/>
+        <package android:name="com.sohu.newsclient"/>
+        <package android:name="com.ss.android.article.video"/>
+        <package android:name="com.ss.android.lark"/>
+        <package android:name="com.ss.android.ugc.aweme.mall"/>
+        <package android:name="com.ss.android.ugc.live"/>
+        <package android:name="com.taobao.trip"/>
+        <package android:name="com.tencent.androidqqmail"/>
+        <package android:name="com.tencent.jcc"/>
+        <package android:name="com.tencent.lolm"/>
+        <package android:name="com.tencent.map"/>
+        <package android:name="com.tencent.mobileqq"/>
+        <package android:name="com.tencent.mtt"/>
+        <package android:name="com.tencent.news"/>
+        <package android:name="com.tencent.qqpim"/>
+        <package android:name="com.tencent.tmgp.cf"/>
+        <package android:name="com.tencent.tmgp.delta"/>
+        <package android:name="com.tencent.tmgp.pubgmhd"/>
+        <package android:name="com.tencent.tmgp.sgame"/>
+        <package android:name="com.tencent.watermark"/>
+        <package android:name="com.tencent.wemeet.app"/>
+        <package android:name="com.tencent.wework"/>
+        <package android:name="com.tencent.xxqi"/>
+        <package android:name="com.tiange.watermark"/>
+        <package android:name="com.tianyancha.skyeye"/>
+        <package android:name="com.tmri.app.main"/>
+        <package android:name="com.UCMobile"/>
+        <package android:name="com.umetrip.android.msky.app"/>
+        <package android:name="com.unionpay"/>
+        <package android:name="com.videogo"/>
+        <package android:name="com.vivo.store"/>
+        <package android:name="com.vivo.wallet"/>
+        <package android:name="com.vivo.weather"/>
+        <package android:name="com.vmall.client"/>
+        <package android:name="com.wudaokou.hippo"/>
+        <package android:name="com.xiaomi.shop"/>
+        <package android:name="com.xiaomi.smarthome"/>
+        <package android:name="com.xingin.xhs"/>
+        <package android:name="com.xt.retouch"/>
+        <package android:name="com.ygkj.chelaile.standard"/>
+        <package android:name="com.yiche.app"/>
+        <package android:name="com.yipiao"/>
+        <package android:name="com.yitong.mbank.psbc"/>
+        <package android:name="com.yoloho.dayima"/>
+        <package android:name="com.yonyou.sgtax"/>
+        <package android:name="com.youdao.dict"/>
+        <package android:name="tv.danmaku.bili"/>
+        <intent>
+            <action android:name="com.umeng.message.action.notify"/>
+        </intent>
+        <package android:name="com.huawei.android.pushagent"/>
+        <intent>
+            <action android:name="com.hihonor.push.action.BIND_PUSH_SERVICE"/>
+        </intent>
+        <intent>
+            <action android:name="com.huawei.hms.core.aidlservice"/>
+        </intent>
+        <intent>
+            <action android:name="com.huawei.hms.core"/>
+        </intent>
+        <package android:name="com.huawei.works"/>
+    </queries>
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.GET_TASKS"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.DETECT_SCREEN_RECORDING"/>
+    <uses-permission android:name="android.permission.REORDER_TASKS"/>
+    <uses-permission android:name="com.asus.msa.SupplementaryDID.ACCESS"/>
+    <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE"/>
+    <uses-permission android:name="android.permission.INSTALL_PACKAGES"/>
+    <uses-permission android:name="com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE"/>
+    <permission android:name="com.dgiot.speedmonitoring.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" android:protectionLevel="signature"/>
+    <uses-permission android:name="com.dgiot.speedmonitoring.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"/>
+    <uses-permission android:name="freemme.permission.msa"/>
+    <uses-permission android:name="com.huawei.android.launcher.permission.CHANGE_BADGE"/>
+    <uses-permission android:name="com.vivo.notification.permission.BADGE_ICON"/>
+    <permission android:name="com.dgiot.speedmonitoring.permission.PROCESS_PUSH_MSG" android:protectionLevel="signature"/>
+    <permission android:name="com.dgiot.speedmonitoring.permission.PUSH_PROVIDER" android:protectionLevel="signature"/>
+    <permission android:name="com.dgiot.speedmonitoring.permission.PUSH_WRITE_PROVIDER" android:protectionLevel="signature"/>
+    <uses-permission android:name="com.dgiot.speedmonitoring.permission.PROCESS_PUSH_MSG"/>
+    <uses-permission android:name="com.dgiot.speedmonitoring.permission.PUSH_PROVIDER"/>
+    <permission android:name="com.dgiot.speedmonitoring.permission.MIPUSH_RECEIVE" android:protectionLevel="signature"/>
+    <uses-permission android:name="com.dgiot.speedmonitoring.permission.MIPUSH_RECEIVE"/>
+    <uses-permission android:name="com.coloros.mcs.permission.RECIEVE_MCS_MESSAGE"/>
+    <uses-permission android:name="com.heytap.mcs.permission.RECIEVE_MCS_MESSAGE"/>
+    <uses-permission android:name="com.meizu.flyme.push.permission.RECEIVE"/>
+    <permission android:name="com.dgiot.speedmonitoring.push.permission.MESSAGE" android:protectionLevel="signature"/>
+    <uses-permission android:name="com.dgiot.speedmonitoring.push.permission.MESSAGE"/>
+    <uses-permission android:name="com.meizu.c2dm.permission.RECEIVE"/>
+    <permission android:name="com.dgiot.speedmonitoring.permission.C2D_MESSAGE" android:protectionLevel="signature"/>
+    <uses-permission android:name="com.dgiot.speedmonitoring.permission.C2D_MESSAGE"/>
+    <uses-permission android:name="com.hihonor.push.permission.READ_PUSH_NOTIFICATION_INFO"/>
+    <application android:allowBackup="false" android:appComponentFactory="androidx.core.app.CoreComponentFactory" android:dataExtractionRules="@xml/data_extraction_rules" android:extractNativeLibs="false" android:fullBackupContent="@xml/backup_rules" android:hardwareAccelerated="true" android:icon="@mipmap/app_logo" android:label="小谷云" android:largeHeap="true" android:name="com.dgiot.speedmonitoring.base.DGApplication" android:networkSecurityConfig="@xml/network_security_config" android:requestLegacyExternalStorage="true" android:roundIcon="@mipmap/ic_launcher_round" android:supportsRtl="true" android:theme="@style/splash_style" android:usesCleartextTraffic="true" android:vmSafeMode="true">
+        <uses-library android:name="org.apache.http.legacy" android:required="false"/>
+        <activity android:exported="true" android:name="com.dgiot.speedmonitoring.MainActivityTestWeb" android:theme="@style/Base.AppTheme"/>
+        <provider android:authorities="com.dgiot.speedmonitoring.fileprovider" android:exported="false" android:grantUriPermissions="true" android:name="androidx.core.content.FileProvider">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths"/>
+        </provider>
+        <service android:exported="false" android:name="com.dgiot.speedmonitoring.service.DeviceInfoService"/>
+        <service android:exported="false" android:name="com.dgiot.speedmonitoring.service.LowPowerDeviceService"/>
+        <service android:exported="false" android:name="com.dgiot.speedmonitoring.service.DeviceVideoFileService"/>
+        <service android:exported="false" android:name="com.dgiot.speedmonitoring.service.VideoFileListDownService"/>
+        <activity android:exported="false" android:label="@string/title_activity_wxlogin" android:name="com.dgiot.speedmonitoring.wxapi.WXLoginActivity" android:theme="@style/Base.AppTheme"/>
+        <activity android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.wxapi.WXEntryActivity" android:taskAffinity="com.dgiot.speedmonitoring" android:theme="@style/Base.AppTheme"/>
+        <activity android:exported="false" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.agreement.AgreementActivity" android:screenOrientation="portrait"/>
+        <activity android:exported="true" android:name="com.dgiot.speedmonitoring.LaunchActivity" android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <activity android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.HintActivity" android:theme="@style/TransTheme"/>
+        <activity android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.WarnActivity" android:theme="@style/TransTheme"/>
+        <activity android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.AccountShareHintActivity" android:theme="@style/TransTheme"/>
+        <activity android:exported="true" android:name="com.dgiot.speedmonitoring.ui.live.TransActivity" android:theme="@style/TransTheme"/>
+        <activity android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.login.LoginActivity" android:screenOrientation="portrait" android:theme="@style/splash_style"/>
+        <activity android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.login.OneClickLoginActivity" android:screenOrientation="portrait"/>
+        <activity android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.register.RegisterActivity" android:screenOrientation="portrait"/>
+        <activity android:exported="true" android:label="@string/app_name" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.MainActivity" android:screenOrientation="portrait" android:theme="@style/Base.AppTheme"/>
+        <activity android:exported="false" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.scan.ScanManagerActivity"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.scan.ScanActivity" android:screenOrientation="portrait" android:theme="@style/Base.AppTheme"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.person.about.AboutActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.person.about.PingActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.person.setting.SettingActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.person.share.MyShareActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.person.setting.AccountSettingActivity" android:screenOrientation="portrait"/>
+        <activity android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.pay.PayWeb" android:screenOrientation="portrait"/>
+        <activity android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.customer.CustomerWeb" android:screenOrientation="portrait" android:windowSoftInputMode="adjustResize|stateHidden"/>
+        <activity android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.customer.DownloadWeb" android:screenOrientation="portrait" android:windowSoftInputMode="adjustResize|stateHidden"/>
+        <activity android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.customer.CustomerNewWeb" android:screenOrientation="portrait"/>
+        <activity android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.customer.ActivityWeb" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.DeviceSettingActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.DeviceAboutActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.test.DownApkActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.DeviceCardInfoActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.DeviceFirmwareInfoActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.DeviceFirmwareInfoNewActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.DeviceBaseInfoActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.DeviceSensitivityActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.DeviceAlarmSettingActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.DeviceRecordSettingActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.DeviceRecordTimeSettingActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.share.ShareDeviceBindActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.MyDeviceListActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.MyVideoListActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.mine.MyOrderListActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.share.ShareDeviceAuthControlActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.DeviceBindFinishSetActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.share.ShareQrCodePicActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.share.ShareAccountActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.AddDeviceBindHintActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.AddDeviceBindQrCodeActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.AddDeviceListSelectActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.record.YunVideoListActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.AddDeviceByWifiActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.BluetoothConnectActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.AddDeviceBindDealActivity" android:screenOrientation="portrait"/>
+        <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.AddDeviceBindDealWifiActivity" android:screenOrientation="portrait"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.live.VideoLiveActivity" android:screenOrientation="portrait" android:theme="@style/Base.AppTheme"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.live.VideoRecordingActivity" android:screenOrientation="portrait" android:theme="@style/Base.AppTheme"/>
+        <receiver android:enabled="true" android:exported="true" android:name="com.dgiot.speedmonitoring.broadcast.DGBroadcast">
+            <intent-filter>
+                <action android:name="com.dgiot.speedmonitoring.http"/>
+                <action android:name="com.dgiot.speedmonitoring.warn.device"/>
+                <action android:name="com.dgiot.speedmonitoring.down.pic.finish"/>
+                <action android:name="com.dgiot.speedmonitoring.video_close.record"/>
+                <action android:name="com.dgiot.speedmonitoring.format.result"/>
+                <action android:name="com.dgiot.speedmonitoring.broadcast.device.msg"/>
+                <action android:name="com.dgiot.speedmonitoring.accept.share.device"/>
+            </intent-filter>
+        </receiver>
+        <activity android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.push.MfrMessageActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:host="com.dgiot.speedmonitoring" android:path="/thirdpush" android:scheme="agoo"/>
+            </intent-filter>
+        </activity>
+        <receiver android:exported="true" android:name="com.dgiot.speedmonitoring.push.MfrMzMessageReceiver">
+            <intent-filter>
+                <action android:name="com.meizu.flyme.push.intent.MESSAGE"/>
+                <action android:name="com.meizu.flyme.push.intent.REGISTER.FEEDBACK"/>
+                <action android:name="com.meizu.flyme.push.intent.UNREGISTER.FEEDBACK"/>
+                <action android:name="com.meizu.c2dm.intent.REGISTRATION"/>
+                <action android:name="com.meizu.c2dm.intent.RECEIVE"/>
+                <category android:name="com.dgiot.speedmonitoring"/>
+            </intent-filter>
+        </receiver>
+        <meta-data android:name="com.vivo.push.api_key" android:value="c891b6e9d761af0f11d0c3e060df19f7"/>
+        <meta-data android:name="com.vivo.push.app_id" android:value="105791232"/>
+        <meta-data android:name="com.huawei.hms.client.appid" android:value="appid=111839009"/>
+        <meta-data android:name="push_kit_auto_init_enabled" android:value="false"/>
+        <meta-data android:name="com.hihonor.push.app_id" android:value="104458737"/>
+        <meta-data android:name="firebase_messaging_auto_init_enabled" android:value="false"/>
+        <meta-data android:name="firebase_analytics_collection_enabled" android:value="false"/>
+        <meta-data android:name="hw_ads_sdk_type" android:value="2"/>
+        <meta-data android:name="api_key" android:value="c891b6e9d761af0f11d0c3e060df19f7"/>
+        <meta-data android:name="app_id" android:value="105791232"/>
+        <service android:exported="true" android:name="com.vivo.push.sdk.service.CommandClientService" android:permission="com.push.permission.UPSTAGESERVICE"/>
+        <receiver android:exported="false" android:name="com.dgiot.speedmonitoring.helper.ViVoPushMessageReceiverImpl">
+            <intent-filter>
+                <action android:name="com.vivo.pushclient.action.RECEIVE"/>
+            </intent-filter>
+        </receiver>
+        <activity android:configChanges="keyboardHidden|orientation" android:name="com.baidu.oauth.sdkbqt.view.WebViewActivity" android:screenOrientation="portrait" android:windowSoftInputMode="stateHidden"/>
+        <meta-data android:name="android.notch_support" android:value="true"/>
+        <activity android:name="com.lxj.xpopup.util.XPermission$PermissionActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+        <receiver android:exported="true" android:name="com.google.firebase.iid.FirebaseInstanceIdReceiver" android:permission="com.google.android.c2dm.permission.SEND">
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE"/>
+            </intent-filter>
+        </receiver>
+        <service android:directBootAware="true" android:exported="false" android:name="com.google.firebase.messaging.FirebaseMessagingService">
+            <intent-filter android:priority="-500">
+                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+            </intent-filter>
+        </service>
+        <service android:directBootAware="true" android:exported="false" android:name="com.google.firebase.components.ComponentDiscoveryService">
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.messaging.FirebaseMessagingKtxRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.messaging.FirebaseMessagingRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.analytics.connector.internal.AnalyticsConnectorRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.installations.FirebaseInstallationsKtxRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.installations.FirebaseInstallationsRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.ktx.FirebaseCommonLegacyRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.FirebaseCommonKtxRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+            <meta-data android:name="com.google.firebase.components:com.google.firebase.datatransport.TransportRegistrar" android:value="com.google.firebase.components.ComponentRegistrar"/>
+        </service>
+        <service android:exported="false" android:name="com.xuexiang.xupdate.service.DownloadService"/>
+        <provider android:authorities="com.dgiot.speedmonitoring.updateFileProvider" android:exported="false" android:grantUriPermissions="true" android:name="com.xuexiang.xupdate.utils.UpdateFileProvider">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/update_file_paths"/>
+        </provider>
+        <activity android:exported="false" android:name="com.xuexiang.xupdate.widget.UpdateDialogActivity" android:theme="@style/XUpdate_DialogTheme"/>
+        <receiver android:enabled="true" android:exported="false" android:name="com.google.android.gms.measurement.AppMeasurementReceiver"/>
+        <service android:enabled="true" android:exported="false" android:name="com.google.android.gms.measurement.AppMeasurementService"/>
+        <service android:enabled="true" android:exported="false" android:name="com.google.android.gms.measurement.AppMeasurementJobService" android:permission="android.permission.BIND_JOB_SERVICE"/>
+        <activity android:exported="false" android:name="com.google.android.gms.common.api.GoogleApiActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+        <provider android:authorities="com.dgiot.speedmonitoring.firebaseinitprovider" android:directBootAware="true" android:exported="false" android:initOrder="100" android:name="com.google.firebase.provider.FirebaseInitProvider"/>
+        <provider android:authorities="com.dgiot.speedmonitoring.androidx-startup" android:exported="false" android:name="androidx.startup.InitializationProvider">
+            <meta-data android:name="androidx.emoji2.text.EmojiCompatInitializer" android:value="androidx.startup"/>
+            <meta-data android:name="androidx.lifecycle.ProcessLifecycleInitializer" android:value="androidx.startup"/>
+            <meta-data android:name="androidx.profileinstaller.ProfileInstallerInitializer" android:value="androidx.startup"/>
+        </provider>
+        <uses-library android:name="androidx.window.extensions" android:required="false"/>
+        <uses-library android:name="androidx.window.sidecar" android:required="false"/>
+        <meta-data android:name="com.google.android.gms.version" android:value="@integer/google_play_services_version"/>
+        <uses-library android:name="android.ext.adservices" android:required="false"/>
+        <provider android:authorities="com.dgiot.speedmonitoring.AgentWebFileProvider" android:exported="false" android:grantUriPermissions="true" android:name="com.just.library.AgentWebFileProvider">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/web_files_paths"/>
+        </provider>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:launchMode="standard" android:name="com.just.library.ActionActivity" android:screenOrientation="portrait" android:theme="@style/actionActivity" android:windowSoftInputMode="stateAlwaysHidden"/>
+        <receiver android:name="com.just.library.RealDownLoader$NotificationBroadcastReceiver"/>
+        <service android:exported="false" android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery">
+            <meta-data android:name="backend:com.google.android.datatransport.cct.CctBackendFactory" android:value="cct"/>
+        </service>
+        <service android:exported="false" android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService" android:permission="android.permission.BIND_JOB_SERVICE"/>
+        <receiver android:exported="false" android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver"/>
+        <provider android:authorities="com.dgiot.speedmonitoring.sls_provider" android:exported="false" android:name="com.aliyun.sls.android.producer.provider.SLSContentProvider"/>
+        <receiver android:directBootAware="false" android:enabled="true" android:exported="true" android:name="androidx.profileinstaller.ProfileInstallReceiver" android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.SKIP_FILE"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION"/>
+            </intent-filter>
+        </receiver>
+        <service android:exported="false" android:name="com.umeng.message.component.UmengIntentService">
+            <intent-filter>
+                <action android:name="org.agoo.android.intent.action.RECEIVE"/>
+            </intent-filter>
+        </service>
+        <service android:exported="false" android:name="com.umeng.message.component.UmengMessageReceiverService">
+            <intent-filter>
+                <action android:name="org.android.agoo.client.MessageReceiverService"/>
+            </intent-filter>
+        </service>
+        <service android:exported="false" android:name="com.umeng.message.component.UmengMessageHandlerService">
+            <intent-filter>
+                <action android:name="com.umeng.message.action"/>
+            </intent-filter>
+        </service>
+        <provider android:authorities="com.dgiot.speedmonitoring.umeng.message" android:exported="false" android:name="com.umeng.message.component.UmengMessageProvider"/>
+        <receiver android:exported="false" android:name="com.umeng.message.component.UmengNotificationReceiver"/>
+        <activity android:exported="false" android:name="com.umeng.message.component.UmengNotificationClickActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+        <service android:exported="false" android:name="com.taobao.accs.ChannelService">
+            <intent-filter>
+                <action android:name="com.taobao.accs.intent.action.START_SERVICE"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.taobao.accs.intent.action.ELECTION"/>
+            </intent-filter>
+        </service>
+        <service android:exported="false" android:name="com.taobao.accs.ChannelService$KernelService"/>
+        <service android:exported="true" android:name="com.taobao.accs.data.MsgDistributeService">
+            <intent-filter>
+                <action android:name="com.taobao.accs.intent.action.RECEIVE"/>
+                <action android:name="com.umeng.message.action.notify"/>
+            </intent-filter>
+        </service>
+        <service android:exported="false" android:name="com.taobao.accs.internal.AccsJobService" android:permission="android.permission.BIND_JOB_SERVICE"/>
+        <service android:exported="false" android:name="org.android.agoo.accs.AgooService">
+            <intent-filter>
+                <action android:name="com.taobao.accs.intent.action.RECEIVE"/>
+            </intent-filter>
+        </service>
+        <receiver android:exported="false" android:name="com.taobao.accs.ServiceReceiver">
+            <intent-filter>
+                <action android:name="com.taobao.accs.intent.action.COMMAND"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.taobao.accs.intent.action.START_FROM_AGOO"/>
+            </intent-filter>
+        </receiver>
+        <receiver android:directBootAware="true" android:exported="true" android:name="com.huawei.hms.support.api.push.PushMsgReceiver" android:permission="com.dgiot.speedmonitoring.permission.PROCESS_PUSH_MSG">
+            <intent-filter>
+                <action android:name="com.huawei.intent.action.PUSH_DELAY_NOTIFY"/>
+                <action android:name="com.huawei.intent.action.PUSH"/>
+            </intent-filter>
+        </receiver>
+        <receiver android:directBootAware="true" android:exported="true" android:name="com.huawei.hms.support.api.push.PushReceiver" android:permission="com.dgiot.speedmonitoring.permission.PROCESS_PUSH_MSG">
+            <intent-filter>
+                <action android:name="com.huawei.android.push.intent.REGISTRATION"/>
+                <action android:name="com.huawei.android.push.intent.RECEIVE"/>
+            </intent-filter>
+        </receiver>
+        <service android:directBootAware="true" android:enabled="true" android:exported="true" android:name="com.huawei.hms.support.api.push.service.HmsMsgService" android:process=":pushservice">
+            <intent-filter>
+                <action android:name="com.huawei.push.msg.NOTIFY_MSG"/>
+                <action android:name="com.huawei.push.msg.PASSBY_MSG"/>
+            </intent-filter>
+        </service>
+        <provider android:authorities="com.dgiot.speedmonitoring.huawei.push.provider" android:exported="true" android:name="com.huawei.hms.support.api.push.PushProvider" android:readPermission="com.dgiot.speedmonitoring.permission.PUSH_PROVIDER" android:writePermission="com.dgiot.speedmonitoring.permission.PUSH_WRITE_PROVIDER"/>
+        <meta-data android:name="com.huawei.hms.client.service.name:push" android:value="push:6.13.0.300"/>
+        <meta-data android:name="com.huawei.hms.min_api_level:push:push" android:value="1"/>
+        <activity android:exported="false" android:name="com.huawei.hms.support.api.push.TransActivity"/>
+        <receiver android:exported="true" android:name="org.android.agoo.xiaomi.MiPushBroadcastReceiver">
+            <intent-filter>
+                <action android:name="com.xiaomi.mipush.RECEIVE_MESSAGE"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.xiaomi.mipush.MESSAGE_ARRIVED"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.xiaomi.mipush.ERROR"/>
+            </intent-filter>
+        </receiver>
+        <service android:enabled="true" android:exported="false" android:name="com.xiaomi.mipush.sdk.MessageHandleService"/>
+        <service android:enabled="true" android:exported="false" android:name="com.xiaomi.push.service.XMPushService" android:process=":pushservice"/>
+        <meta-data android:name="MIPUSH_SDK_VERSION_CODE" android:value="50909"/>
+        <meta-data android:name="MIPUSH_SDK_VERSION_NAME" android:value="5_9_9-C"/>
+        <service android:enabled="true" android:exported="false" android:name="com.xiaomi.push.service.XMJobService" android:permission="android.permission.BIND_JOB_SERVICE" android:process=":pushservice"/>
+        <service android:enabled="true" android:exported="true" android:name="com.xiaomi.mipush.sdk.PushMessageHandler" android:permission="com.xiaomi.xmsf.permission.MIPUSH_RECEIVE"/>
+        <receiver android:exported="false" android:name="com.xiaomi.push.service.receivers.PingReceiver" android:process=":pushservice">
+            <intent-filter>
+                <action android:name="com.xiaomi.push.PING_TIMER"/>
+            </intent-filter>
+        </receiver>
+        <activity android:enabled="true" android:excludeFromRecents="true" android:exported="true" android:launchMode="singleInstance" android:name="com.xiaomi.mipush.sdk.NotificationClickedActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <meta-data android:name="supportStyle" android:value="scene|voip"/>
+        </activity>
+        <meta-data android:name="sdk_version_vivo" android:value="510"/>
+        <meta-data android:name="local_iv" android:value="MzMsMzQsMzUsMzYsMzcsMzgsMzksNDAsNDEsMzIsMzgsMzcsMzYsMzUsMzQsMzMsI0AzNCwzMiwzMywzNywzMywzNCwzMiwzMywzMywzMywzNCw0MSwzNSwzNSwzMiwzMiwjQDMzLDM0LDM1LDM2LDM3LDM4LDM5LDQwLDQxLDMyLDM4LDM3LDMzLDM1LDM0LDMzLCNAMzQsMzIsMzMsMzcsMzMsMzQsMzIsMzMsMzMsMzMsMzQsNDEsMzUsMzIsMzIsMzI"/>
+        <meta-data android:name="com.vivo.push.support_monitor" android:value="1"/>
+        <service android:exported="true" android:name="com.heytap.msp.push.service.CompatibleDataMessageCallbackService" android:permission="com.coloros.mcs.permission.SEND_MCS_MESSAGE">
+            <intent-filter>
+                <action android:name="com.coloros.mcs.action.RECEIVE_MCS_MESSAGE"/>
+            </intent-filter>
+        </service>
+        <service android:exported="true" android:name="com.heytap.msp.push.service.DataMessageCallbackService" android:permission="com.heytap.mcs.permission.SEND_PUSH_MESSAGE">
+            <intent-filter>
+                <action android:name="com.heytap.mcs.action.RECEIVE_MCS_MESSAGE"/>
+                <action android:name="com.heytap.msp.push.RECEIVE_MCS_MESSAGE"/>
+            </intent-filter>
+        </service>
+        <meta-data android:name="sdkVersion" android:value="3400"/>
+        <service android:exported="true" android:name="com.meizu.cloud.pushsdk.NotificationService" android:permission="com.meizu.cloud.push.permission.MESSAGE"/>
+        <receiver android:exported="false" android:name="com.meizu.cloud.pushsdk.MzPushSystemReceiver">
+            <intent-filter>
+                <action android:name="com.meizu.flyme.push.intent.PUSH_SYSTEM"/>
+            </intent-filter>
+        </receiver>
+        <service android:exported="false" android:name="org.android.agoo.honor.HonorMsgService">
+            <intent-filter>
+                <action android:name="com.hihonor.push.action.MESSAGING_EVENT"/>
+            </intent-filter>
+        </service>
+        <meta-data android:name="com.hihonor.push.sdk_version" android:value="7.0.61.303"/>
+        <provider android:authorities="com.dgiot.speedmonitoring.aaidinitprovider" android:exported="false" android:initOrder="500" android:name="com.huawei.hms.aaid.InitProvider"/>
+        <meta-data android:name="com.huawei.hms.client.service.name:opendevice" android:value="opendevice:6.13.0.300"/>
+        <meta-data android:name="com.huawei.hms.min_api_level:opendevice:push" android:value="1"/>
+        <meta-data android:name="com.huawei.hms.client.service.name:base" android:value="base:6.13.0.301"/>
+        <meta-data android:name="com.huawei.hms.min_api_level:base:hmscore" android:value="1"/>
+        <meta-data android:name="availableLoaded" android:value="yes"/>
+        <provider android:authorities="com.dgiot.speedmonitoring.AGCInitializeProvider" android:exported="false" android:name="com.huawei.agconnect.core.provider.AGConnectInitializeProvider"/>
+        <service android:exported="false" android:name="com.huawei.agconnect.core.ServiceDiscovery"/>
+        <activity android:configChanges="fontScale|layoutDirection|locale|orientation|screenLayout|screenSize|smallestScreenSize|uiMode" android:excludeFromRecents="true" android:exported="false" android:hardwareAccelerated="true" android:name="com.huawei.hms.activity.BridgeActivity" android:screenOrientation="behind" android:theme="@style/Base_Translucent">
+            <meta-data android:name="hwc-theme" android:value="androidhwext:style/Theme.Emui.Translucent"/>
+            <meta-data android:name="distractionOptimized" android:value="true"/>
+        </activity>
+        <activity android:configChanges="keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:exported="false" android:name="com.huawei.hms.activity.EnableServiceActivity"/>
+    </application>
+</manifest>

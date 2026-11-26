@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:orientation="vertical" android:id="@id/root" android:background="@color/main_bg" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <include layout="@layout/line_cardelevation_style1" />
+    <RelativeLayout android:id="@id/rl_yunpan" android:visibility="invisible" android:layout_width="fill_parent" android:layout_height="10.0dip">
+        <View android:id="@id/viewFlag" android:layout_width="1.0dip" android:layout_height="10.0dip" android:layout_centerHorizontal="true" />
+        <TextView android:textSize="15.0sp" android:textColor="@color/black" android:gravity="center" android:id="@id/tv_ptz" android:layout_width="60.0dip" android:layout_height="70.0dip" android:text="云台" android:layout_toLeftOf="@id/viewFlag" />
+        <TextView android:textSize="15.0sp" android:textColor="@color/textColor_style1" android:gravity="center" android:id="@id/tv_operate" android:layout_width="60.0dip" android:layout_height="70.0dip" android:text="操作" android:layout_toRightOf="@id/viewFlag" />
+        <TextView android:textColor="@color/color_65A2FF" android:gravity="center" android:visibility="invisible" android:layout_width="60.0dip" android:layout_height="70.0dip" android:text="巡航" android:layout_alignParentRight="true" />
+    </RelativeLayout>
+    <FrameLayout android:orientation="vertical" android:id="@id/flControl" android:layout_width="fill_parent" android:layout_height="fill_parent">
+        <LinearLayout android:gravity="center" android:orientation="vertical" android:id="@id/flOperateVideo" android:layout_width="fill_parent" android:layout_height="fill_parent">
+            <com.dgiot.speedmonitoring.ui.view.SteeringWheelControl android:id="@id/steeringWheel" android:layout_width="fill_parent" android:layout_height="wrap_content" />
+        </LinearLayout>
+        <ImageView android:id="@id/iv_yunFlag1" android:layout_width="115.0dip" android:layout_height="47.0dip" android:layout_marginLeft="2.0dip" android:layout_marginTop="5.0dip" android:src="@drawable/icon_yunflag1" />
+        <ImageView android:layout_gravity="right" android:id="@id/iv_yunFlag2" android:layout_width="115.0dip" android:layout_height="47.0dip" android:layout_marginTop="5.0dip" android:layout_marginRight="2.0dip" android:src="@drawable/icon_yunflag2" />
+        <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:background="@drawable/bg_shape_round" android:paddingLeft="40.0dip" android:paddingRight="40.0dip" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip">
+            <LinearLayout android:gravity="center" android:orientation="vertical" android:visibility="gone" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_weight="1.0" android:layout_alignParentLeft="true" android:layout_centerVertical="true">
+                <ImageView android:background="@drawable/bg_ripple_style2" android:clickable="true" android:layout_width="23.0dip" android:layout_height="23.0dip" android:src="@drawable/icon_control_list" />
+            </LinearLayout>
+            <LinearLayout android:gravity="center" android:orientation="vertical" android:visibility="gone" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_weight="1.0" android:layout_centerInParent="true">
+                <ImageView android:background="@drawable/bg_ripple_style2" android:clickable="true" android:layout_width="23.0dip" android:layout_height="23.0dip" android:src="@drawable/icon_control_add" />
+            </LinearLayout>
+            <LinearLayout android:gravity="center" android:orientation="vertical" android:id="@id/ll_madaCheck" android:visibility="invisible" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_weight="1.0" android:layout_alignParentRight="true">
+                <ImageView android:id="@id/iv_resetMada" android:background="@drawable/bg_ripple_style2" android:clickable="true" android:layout_width="27.0dip" android:layout_height="27.0dip" android:src="@drawable/icon_control_refresh" />
+            </LinearLayout>
+        </LinearLayout>
+        <FrameLayout android:visibility="gone" android:gravity="center_vertical" android:layout_gravity="bottom" android:orientation="horizontal" android:id="@id/fl_tips" android:background="@drawable/bg_shape_notice" android:layout_width="fill_parent" android:layout_height="30.0dip" android:layout_marginLeft="10.0dip" android:layout_marginTop="20.0dip" android:layout_marginRight="10.0dip" android:layout_marginBottom="5.0dip">
+            <ImageView android:layout_gravity="center|right" android:id="@id/iv_deleteTips" android:layout_width="20.0dip" android:layout_height="20.0dip" android:layout_marginLeft="15.0dip" android:layout_marginRight="1.0dip" android:src="@drawable/icon_delete_white" android:scaleType="fitXY" />
+            <TextView android:textSize="14.0dip" android:textColor="@color/white" android:ellipsize="marquee" android:gravity="center_vertical" android:id="@id/marqueeText" android:focusable="true" android:focusableInTouchMode="true" android:layout_width="wrap_content" android:layout_height="30.0dip" android:layout_marginLeft="15.0dip" android:layout_marginRight="20.0dip" android:text="********************************************************************************************************" android:singleLine="true" android:marqueeRepeatLimit="marquee_forever" />
+            <com.gongwen.marqueen.SimpleMarqueeView android:id="@id/marqueeViewCode" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="fill_parent" android:layout_marginRight="16.0dip" android:inAnimation="@anim/in_right" android:outAnimation="@anim/out_left" android:flipInterval="2000" app:marqueeAnimDuration="2000" app:smvTextColor="@color/white" app:smvTextGravity="center" app:smvTextSingleLine="true" app:smvTextSize="15.0sp" />
+        </FrameLayout>
+    </FrameLayout>
+    <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:id="@id/flOperate" android:background="@drawable/bg_shape_round" android:paddingTop="20.0dip" android:paddingBottom="20.0dip" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content">
+        <LinearLayout android:gravity="center" android:orientation="vertical" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_weight="1.0" android:layout_alignParentLeft="true" android:layout_centerVertical="true">
+            <ImageView android:background="@drawable/bg_ripple_style2" android:clickable="true" android:layout_width="35.0dip" android:layout_height="35.0dip" android:src="@drawable/icon_photo" />
+            <TextView android:textColor="@color/textColor_style1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:text="截图" />
+        </LinearLayout>
+        <LinearLayout android:gravity="center" android:orientation="vertical" android:visibility="invisible" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_weight="1.0" android:layout_centerInParent="true">
+            <ImageView android:background="@drawable/bg_ripple_style2" android:clickable="true" android:layout_width="35.0dip" android:layout_height="35.0dip" android:src="@drawable/icon_record" />
+            <TextView android:textColor="@color/textColor_style1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:text="录制" />
+        </LinearLayout>
+        <LinearLayout android:gravity="center" android:orientation="vertical" android:visibility="invisible" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_weight="1.0" android:layout_alignParentRight="true">
+            <ImageView android:clickable="true" android:layout_width="35.0dip" android:layout_height="35.0dip" android:src="@drawable/icon_warn" />
+            <TextView android:textColor="@color/textColor_style1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:text="一键驱逐" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

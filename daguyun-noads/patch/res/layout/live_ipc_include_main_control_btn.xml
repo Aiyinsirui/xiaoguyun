@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:gravity="center" android:orientation="horizontal" android:id="@id/root" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_alignParentBottom="true"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <FrameLayout android:gravity="center_horizontal" android:orientation="vertical" android:layout_width="wrap_content" android:layout_height="@dimen/video_operate_height">
+        <ImageButton android:visibility="gone" android:id="@id/ib_recharge" android:src="@drawable/ic_cz" style="@style/MainControlBtn" />
+        <TextView android:visibility="gone" android:textSize="12.0dip" android:textColor="@color/color_434343" android:layout_gravity="bottom|center" android:id="@id/tv_rechargeDisc" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="云存" />
+        <TextView android:textSize="11.0dip" android:textColor="@color/white" android:layout_gravity="center|right|top" android:id="@id/tv_yunState" android:background="@drawable/bg_shape_no_yun_info" android:paddingLeft="5.0dip" android:paddingRight="5.0dip" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2.0dip" android:text="未开通" />
+    </FrameLayout>
+    <FrameLayout android:gravity="center_horizontal" android:orientation="vertical" android:layout_width="wrap_content" android:layout_height="@dimen/video_operate_height" android:layout_marginLeft="20.0dip">
+        <ImageButton android:id="@id/ib_mute" android:src="@drawable/icon_video_horn_selector" style="@style/MainControlBtn" />
+        <TextView android:textSize="12.0dip" android:textColor="@color/color_434343" android:layout_gravity="bottom|center" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="声音" />
+    </FrameLayout>
+    <FrameLayout android:gravity="center_horizontal" android:orientation="vertical" android:layout_width="wrap_content" android:layout_height="@dimen/video_operate_height">
+        <ImageButton android:id="@id/ib_speaker" android:background="@null" android:layout_width="52.0dip" android:layout_height="52.0dip" android:layout_marginLeft="20.0dip" android:layout_marginRight="20.0dip" android:src="@drawable/icon_video_voice_select" android:scaleType="fitCenter" />
+        <TextView android:textSize="12.0dip" android:textColor="@color/color_434343" android:layout_gravity="bottom|center" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="对讲" />
+    </FrameLayout>
+    <FrameLayout android:gravity="center_horizontal" android:orientation="vertical" android:layout_width="wrap_content" android:layout_height="@dimen/video_operate_height">
+        <ImageButton android:id="@id/ib_vox" android:src="@drawable/icon_video_lighting_selector" style="@style/MainControlBtn" />
+        <TextView android:textSize="12.0dip" android:textColor="@color/color_434343" android:layout_gravity="bottom|center" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="灯光" />
+    </FrameLayout>
+    <FrameLayout android:gravity="center_horizontal" android:orientation="vertical" android:layout_width="wrap_content" android:layout_height="@dimen/video_operate_height" android:layout_marginLeft="20.0dip">
+        <ImageButton android:id="@id/ib_definition" android:src="@drawable/ic_gq_cn" style="@style/MainControlBtn" />
+        <TextView android:textSize="12.0dip" android:textColor="@color/color_434343" android:layout_gravity="bottom|center" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="清晰度" />
+    </FrameLayout>
+</LinearLayout>

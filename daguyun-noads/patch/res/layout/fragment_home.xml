@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout android:background="@color/main_bg" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <androidx.constraintlayout.widget.ConstraintLayout android:id="@id/cl_01" android:layout_width="fill_parent" android:layout_height="wrap_content">
+        <com.dgiot.speedmonitoring.ui.view.RoundedBottomImageView android:id="@id/imageView5" android:layout_width="0.0dip" android:layout_height="150.0dip" android:src="@drawable/ic_bg_home_day" android:scaleType="fitXY" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
+        <LinearLayout android:gravity="center" android:orientation="vertical" android:id="@id/ll_video" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="65.0dip" android:layout_marginStart="40.0dip" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="@id/imageView5">
+            <ImageView android:id="@id/iv_video" android:layout_width="25.0dip" android:layout_height="20.0dip" android:src="@drawable/ic_main_log_video" />
+            <TextView android:textSize="12.0dip" android:textColor="@color/white" android:id="@id/tv_notification" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="新手教程" />
+        </LinearLayout>
+        <ImageView android:id="@id/iv_selectGroup" android:visibility="gone" android:layout_width="12.0dip" android:layout_height="12.0dip" android:layout_marginTop="20.0dip" android:src="@drawable/ic_device_down" android:layout_marginStart="12.0dip" app:layout_constraintBottom_toTopOf="parent" app:layout_constraintEnd_toStartOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
+        <LinearLayout android:orientation="horizontal" android:id="@id/l_messageOperate" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="63.0dip" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toTopOf="@id/imageView5">
+            <LinearLayout android:visibility="gone" android:orientation="horizontal" android:id="@id/ll_adTop" android:layout_width="25.0dip" android:layout_height="25.0dip" android:layout_marginRight="20.0dip" />
+            <LinearLayout android:gravity="center" android:orientation="vertical" android:id="@id/ll_contacts2" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginRight="10.0dip">
+                <ImageView android:id="@id/iv_contacts2" android:layout_width="22.0dip" android:layout_height="22.0dip" android:src="@drawable/ic_main_contacts" />
+                <TextView android:textSize="12.0dip" android:textColor="@color/white" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="官方客服" />
+            </LinearLayout>
+            <LinearLayout android:gravity="center" android:orientation="vertical" android:id="@id/ll_notificationHintSetting" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginRight="10.0dip">
+                <ImageView android:id="@id/iv_notification" android:layout_width="22.0dip" android:layout_height="22.0dip" android:src="@drawable/icon_notify_control_selector" />
+                <TextView android:textSize="12.0dip" android:textColor="@color/white" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="消息通知" />
+            </LinearLayout>
+            <LinearLayout android:gravity="center" android:orientation="vertical" android:id="@id/ll_add_device" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginRight="10.0dip">
+                <ImageView android:id="@id/iv_add" android:layout_width="22.0dip" android:layout_height="22.0dip" android:src="@drawable/ic_device_new_add" />
+                <TextView android:textSize="12.0dip" android:textColor="@color/white" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="添加设备" />
+            </LinearLayout>
+            <LinearLayout android:gravity="center" android:orientation="vertical" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginRight="10.0dip">
+                <ImageView android:id="@id/iv_scan" android:layout_width="22.0dip" android:layout_height="22.0dip" android:src="@drawable/ic_device_scan2" />
+                <TextView android:textSize="12.0dip" android:textColor="@color/white" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="扫码添加" />
+            </LinearLayout>
+        </LinearLayout>
+        <FrameLayout android:id="@id/fl_AdContent" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="0.0dip" android:layout_marginLeft="20.0dip" android:layout_marginTop="120.0dip" android:layout_marginRight="20.0dip" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="@id/imageView5">
+            <androidx.viewpager2.widget.ViewPager2 android:id="@id/vpBanner" android:layout_width="fill_parent" android:layout_height="54.0dip" />
+            <ImageView android:layout_gravity="end|center|top" android:id="@id/iv_closeAd" android:visibility="gone" android:layout_width="15.0dip" android:layout_height="15.0dip" android:layout_marginTop="5.0dip" android:src="@drawable/icon_close" android:layout_marginEnd="5.0dip" />
+        </FrameLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+    <com.scwang.smartrefresh.layout.SmartRefreshLayout android:id="@id/refreshLayout" android:layout_width="0.0dip" android:layout_height="0.0dip" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@id/cl_01" app:srlAccentColor="@color/color_65A2FF" app:srlDragRate="0.5" app:srlEnableHeaderTranslationContent="true" app:srlPrimaryColor="@android:color/transparent">
+        <com.scwang.smartrefresh.header.BezierCircleHeader android:background="@color/main_bg" android:layout_width="fill_parent" android:layout_height="wrap_content" />
+        <androidx.constraintlayout.widget.ConstraintLayout android:layout_width="fill_parent" android:layout_height="fill_parent">
+            <View android:id="@id/tools" android:layout_width="fill_parent" android:layout_height="@dimen/toolSpace" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
+            <LinearLayout android:orientation="vertical" android:id="@id/ll_data" android:layout_width="fill_parent" android:layout_height="0.0dip" android:layout_marginTop="5.0dip" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintHorizontal_bias="0.0" app:layout_constraintStart_toStartOf="parent">
+                <LinearLayout android:padding="20.0dip" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="常用" />
+                    <TextView android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="20.0dip" android:text="客厅" />
+                    <TextView android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="20.0dip" android:text="厨房" />
+                    <TextView android:id="@id/testUnBinding" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="20.0dip" android:text="卫生间" />
+                </LinearLayout>
+                <FrameLayout android:id="@id/fl_recyclerview_device_list" android:layout_width="fill_parent" android:layout_height="fill_parent">
+                    <com.yanzhenjie.recyclerview.SwipeRecyclerView android:id="@id/recyclerview_device_list" android:paddingLeft="14.0dip" android:paddingTop="10.0dip" android:paddingRight="14.0dip" android:visibility="visible" android:layout_width="fill_parent" android:layout_height="fill_parent" android:layout_marginTop="10.0dip" />
+                    <FrameLayout android:visibility="gone" android:layout_gravity="bottom" android:id="@id/fl_bottom_ad" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                        <LinearLayout android:layout_gravity="bottom" android:orientation="horizontal" android:id="@id/ll_bottom_ad" android:layout_width="fill_parent" android:layout_height="125.0dip" />
+                        <ImageView android:visibility="gone" android:layout_width="77.0dip" android:layout_height="27.0dip" android:src="@drawable/icon_hide_ad" />
+                    </FrameLayout>
+                    <RelativeLayout android:visibility="gone" android:layout_gravity="bottom" android:orientation="vertical" android:id="@id/rl_ad_hint_recharge" android:background="@drawable/shape_ad_hint_round_corner_gradient" android:paddingLeft="40.0dip" android:paddingBottom="10.0dip" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                        <TextView android:textColor="#ff905620" android:gravity="center_vertical" android:id="@id/tv_desc1" android:layout_width="wrap_content" android:layout_height="40.0dip" android:layout_marginTop="10.0dip" android:text="您有一笔云存储订单待支付" />
+                        <TextView android:textSize="13.0dip" android:textColor="#ffa77240" android:id="@id/tv_desc2" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5.0dip" android:text="支付成功可查看完整录像" android:layout_below="@id/tv_desc1" />
+                        <androidx.cardview.widget.CardView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginRight="30.0dip" android:layout_alignParentRight="true" android:layout_centerVertical="true" app:cardCornerRadius="10.0dip">
+                            <TextView android:textStyle="bold" android:textColor="#ff90561f" android:id="@id/tv_adRecharge" android:background="#ffdfad70" android:paddingLeft="20.0dip" android:paddingTop="8.0dip" android:paddingRight="20.0dip" android:paddingBottom="8.0dip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="去支付" />
+                        </androidx.cardview.widget.CardView>
+                        <TextView android:textStyle="bold" android:id="@id/tv_delete_adRecharge" android:background="@drawable/shape_ad_hint_delete" android:paddingLeft="7.0dip" android:paddingTop="3.0dip" android:paddingRight="7.0dip" android:paddingBottom="7.0dip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="X" android:layout_alignParentRight="true" />
+                    </RelativeLayout>
+                </FrameLayout>
+                <include layout="@layout/view_loadfail" />
+            </LinearLayout>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </com.scwang.smartrefresh.layout.SmartRefreshLayout>
+    <com.dgiot.speedmonitoring.ui.view.FloatAdsorbContainer android:id="@id/ll_contacts" android:visibility="gone" android:clickable="true" android:layout_width="100.0dip" android:layout_height="100.0dip" android:layout_marginBottom="93.0dip" app:layout_constraintTop_toTopOf="parent">
+        <LinearLayout android:gravity="center" android:orientation="vertical" android:layout_width="fill_parent" android:layout_height="fill_parent">
+            <ImageView android:id="@id/iv_contacts" android:focusable="false" android:clickable="false" android:layout_width="60.0dip" android:layout_height="60.0dip" android:src="@drawable/ic_main_contacts5" />
+            <TextView android:textSize="13.0dip" android:textStyle="bold" android:textColor="@color/color_65A2FF" android:gravity="center" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="官方技术客服" />
+        </LinearLayout>
+    </com.dgiot.speedmonitoring.ui.view.FloatAdsorbContainer>
+</androidx.constraintlayout.widget.ConstraintLayout>
