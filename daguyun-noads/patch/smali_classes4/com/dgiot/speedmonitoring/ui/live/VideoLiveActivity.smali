@@ -1160,13 +1160,8 @@
     iput-object v2, p0, Lcom/dgiot/speedmonitoring/ui/live/VideoLiveActivity;->videoSizePositionState:Ljava/util/HashMap;
 
     .line 722
-    const/4 v0, 0x0
-
     iput v0, p0, Lcom/dgiot/speedmonitoring/ui/live/VideoLiveActivity;->selectStream:I
 
-    const/4 v0, 0x1
-
-    iput v0, p0, Lcom/dgiot/speedmonitoring/ui/live/VideoLiveActivity;->curDefinition:I
 
     .line 725
     iput-object v1, p0, Lcom/dgiot/speedmonitoring/ui/live/VideoLiveActivity;->changeStreamUrl:Ljava/lang/String;
@@ -12246,6 +12241,15 @@
 
 .method public final setDefinitionPopResult(Lcom/dgiot/speedmonitoring/ui/pop/BottomDefinitionSelectPopup$DefinitionType;)V
     .locals 4
+
+    sget-object v0, Lcom/dgiot/speedmonitoring/ui/pop/BottomDefinitionSelectPopup$DefinitionType;->CQ:Lcom/dgiot/speedmonitoring/ui/pop/BottomDefinitionSelectPopup$DefinitionType;
+
+    if-ne p1, v0, :cond_xgy
+
+    return-void
+
+    :cond_xgy
+
 
     const-string v0, "type"
 

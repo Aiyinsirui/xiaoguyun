@@ -86,3 +86,45 @@ dex 已无法再压（未开 R8，改 smali 做不了全局混淆/裁剪）；`l
 - 直播页横屏主从布局（左画面 + 右控制栏）；
 - 我的/登录/设置页按同一 token 重排；
 - 客服入口从「我的」页 `rl_customer` 恢复显示（需先确认点击逻辑可用）。
+
+
+---
+
+## 6. 第三轮：超清默认值的回归与回滚（2026-11-26 22:10）
+
+### 6.1 现象
+上一轮把直播默认画质从「高清」改成「超清」（`selectStream` 构造默认 1 → 0）。用户实测后：
+- 进入直播页后点「清晰度 / 灯光 / 对讲」会**自动退回首页**；
+- 系统报 **应用无响应（ANR）**；
+- 刚进页面约 **7 秒**卡住不动，之后才出画面。
+
+### 6.2 证据
+`dumpsys dropbox --print data_app_anr` 里抓到 4 条 ANR，全部是同一处：
+
+```
+Process: com.dgiot.speedmonitoring
+Activity: com.dgiot.speedmonitoring/.ui.live.VideoLiveActivity
+CPU usage: 37% 13811/com.dgiot.speedmonitoring: 34% user + 2.6% kernel / faults: 172121 minor 3520 major
+```
+
+- 没有 Java 层 `FATAL EXCEPTION`（不是崩溃，是主线程被卡住触发 ANR）；
+- 37% 单进程 CPU + 3520 次 major page fault → 典型的大码流解码 + 内存抖动；
+- `crash` 缓冲为空，只有 ANR。
+
+### 6.3 结论与处理
+**超清流（1920×2160 HEVC）在这台平板上解码过重**，主线程被播放器初始化/切流阻塞 →
+系统判定 ANR → 回收界面（表现就是"自动退回首页"）。这不是我改 UI 引入的崩溃，是我上一轮
+把默认流换成超清后**踩到了原厂播放器的性能天花板**。
+
+处理（已验证构建 + 装上 + 进直播页能正常出画面）：
+1. **默认画质回滚为高清**：撤销构造里的 `selectStream=0`，恢复原厂默认 1（高清）；
+2. **彻底屏蔽「超清(CQ)」选项**：在 `VideoLiveActivity.setDefinitionPopResult()` 开头加
+   `if (type == DefinitionType.CQ) return;`，这样即使手动点也切不到超清，避免再次触发 ANR；
+3. 保留「高清 / 流畅」两档可用。
+
+> 顺带说明：进页面约 7 秒才出画面是**原厂行为**（RTMP 握手 + 首帧 + 双路解码），
+> 与本次改动无关；我实测同样需要等待，切回高清后没有出现页面自动关闭。
+
+### 6.4 教训
+改播放相关参数（码流档位、解码器、分包大小）必须**真机跑一遍交互**，不能只看编译和冷启动。
+ANR 不看 `logcat -b crash`，要看 `dumpsys dropbox --print data_app_anr` 或 `/data/anr/`。
