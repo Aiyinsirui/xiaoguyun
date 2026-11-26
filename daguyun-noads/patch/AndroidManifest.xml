@@ -371,7 +371,7 @@
         <activity android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.login.LoginActivity" android:screenOrientation="portrait" android:theme="@style/splash_style"/>
         <activity android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.login.OneClickLoginActivity" android:screenOrientation="portrait"/>
         <activity android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.register.RegisterActivity" android:screenOrientation="portrait"/>
-        <activity android:exported="true" android:label="@string/app_name" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.MainActivity" android:screenOrientation="portrait" android:theme="@style/Base.AppTheme"/>
+        <activity android:exported="true" android:label="@string/app_name" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.MainActivity" android:theme="@style/Base.AppTheme"/>
         <activity android:exported="false" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.scan.ScanManagerActivity"/>
         <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.scan.ScanActivity" android:screenOrientation="portrait" android:theme="@style/Base.AppTheme"/>
         <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.person.about.AboutActivity" android:screenOrientation="portrait"/>
@@ -411,7 +411,7 @@
         <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.BluetoothConnectActivity" android:screenOrientation="portrait"/>
         <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.AddDeviceBindDealActivity" android:screenOrientation="portrait"/>
         <activity android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.devicemanage.AddDeviceBindDealWifiActivity" android:screenOrientation="portrait"/>
-        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.live.VideoLiveActivity" android:screenOrientation="portrait" android:theme="@style/Base.AppTheme"/>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.live.VideoLiveActivity" android:theme="@style/Base.AppTheme"/>
         <activity android:configChanges="keyboardHidden|orientation|screenSize" android:exported="true" android:launchMode="singleTask" android:name="com.dgiot.speedmonitoring.ui.live.VideoRecordingActivity" android:screenOrientation="portrait" android:theme="@style/Base.AppTheme"/>
         <receiver android:enabled="true" android:exported="true" android:name="com.dgiot.speedmonitoring.broadcast.DGBroadcast">
             <intent-filter>
