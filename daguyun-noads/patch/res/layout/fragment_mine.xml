@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.scwang.smartrefresh.layout.SmartRefreshLayout android:id="@id/refreshLayout" android:background="@color/color_65A2FF" android:layout_width="fill_parent" android:layout_height="fill_parent" app:srlDragRate="0.25" app:srlEnableLoadMore="false" app:srlEnablePureScrollMode="true"
+<com.scwang.smartrefresh.layout.SmartRefreshLayout android:id="@id/refreshLayout" android:background="@drawable/xgy_bg_gradient" android:layout_width="fill_parent" android:layout_height="fill_parent" app:srlDragRate="0.25" app:srlEnableLoadMore="false" app:srlEnablePureScrollMode="true"
   xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
     <androidx.constraintlayout.widget.ConstraintLayout android:background="@color/main_bg" android:layout_width="fill_parent" android:layout_height="fill_parent">
         <com.dgiot.speedmonitoring.ui.view.RoundedBottomImageView android:id="@id/imageView5" android:background="@color/main_bg" android:layout_width="0.0dip" android:layout_height="180.0dip" android:src="@drawable/ic_bg_home_day" android:scaleType="fitXY" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />

@@ -9631,7 +9631,6 @@
     :cond_1
     const/16 v1, 0x8
 
-    invoke-virtual {v0, v1}, Lcom/dgiot/speedmonitoring/ui/view/FloatAdsorbContainer;->setVisibility(I)V
 
     .line 2121
     :goto_1
